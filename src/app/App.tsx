@@ -1,4 +1,4 @@
-import { BoardPage } from '../pages/board/index.js';
+import { BoardPage } from '../pages/board';
 
 export default function App() {
   return <BoardPage />;

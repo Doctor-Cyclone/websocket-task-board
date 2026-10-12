@@ -3,6 +3,7 @@ import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import prettier from 'eslint-config-prettier';
+import tseslint from 'typescript-eslint';
 
 export default [
   { ignores: ['dist/**', 'node_modules/**', '.pnpm-store/**', 'coverage/**'] },
@@ -11,8 +12,9 @@ export default [
     files: ['**/*.{js,jsx}'],
     languageOptions: { ecmaVersion: 'latest', sourceType: 'module' },
   },
+  ...tseslint.configs.recommended,
   {
-    files: ['src/**/*.{js,jsx}'],
+    files: ['src/**/*.{ts,tsx}'],
     languageOptions: {
       parserOptions: { ecmaFeatures: { jsx: true } },
       globals: globals.browser,
@@ -24,7 +26,7 @@ export default [
     },
   },
   {
-    files: ['*.config.js', 'server/**/*.js'],
+    files: ['*.config.{js,ts}', 'server/**/*.ts'],
     languageOptions: { globals: globals.node },
   },
   prettier,
