@@ -1,99 +1,39 @@
 import { CONNECTION_STATUS } from '@/src/shared/connection';
+import { useJobs } from '../model/useJobs';
+import { BoardHeader } from './BoardHeader';
+import { JobsPanel } from './JobsPanel';
+import { RequestsPanel } from './RequestsPanel';
 import styles from './BoardPage.module.scss';
-import { useJobs } from '@/src/pages/board/model/useJobs';
-import { REQUEST_STATUS, REQUEST_STATUS_LABEL } from '../model/requests';
 
 export default function BoardPage() {
   const { connectionStatus, jobs, requests, connect, send, disconnect, retry } = useJobs();
+  const connected = connectionStatus === CONNECTION_STATUS.CONNECTED;
 
   return (
-    <main className={styles.page}>
-      <h1 className={styles.title}>Job Board</h1>
-
-      <p role="status">Connection: {connectionStatus}</p>
-
-      <div>
-        <button
-          onClick={connect}
-          disabled={
-            connectionStatus === CONNECTION_STATUS.CONNECTING ||
-            connectionStatus === CONNECTION_STATUS.RECONNECTING ||
-            connectionStatus === CONNECTION_STATUS.CONNECTED ||
-            connectionStatus === CONNECTION_STATUS.DISCONNECTING
+    <div className={styles.page}>
+      <BoardHeader status={connectionStatus} onConnect={connect} onDisconnect={disconnect} />
+      <main className={styles.content}>
+        <JobsPanel
+          jobs={jobs}
+          connected={connected}
+          onCreate={() =>
+            send({
+              type: 'job:create',
+              requestId: crypto.randomUUID(),
+              payload: { title: `Job #${jobs.length + 1}` },
+            })
           }
-        >
-          Connect
-        </button>
-
-        <button
-          onClick={disconnect}
-          disabled={
-            connectionStatus === CONNECTION_STATUS.DISCONNECTED ||
-            connectionStatus === CONNECTION_STATUS.DISCONNECTING
+          onToggle={(job) =>
+            send({ type: 'job:update', payload: { id: job.id, completed: !job.completed } })
           }
-        >
-          Disconnect
-        </button>
-
-        {connectionStatus === CONNECTION_STATUS.CONNECTED && (
-          <button
-            onClick={() =>
-              send({
-                type: 'job:create',
-                requestId: crypto.randomUUID(),
-                payload: {
-                  title: `Job #${Math.random()}`,
-                },
-              })
-            }
-          >
-            Create job
-          </button>
-        )}
-      </div>
-      <ul>
-        {jobs.map((job) => (
-          <li key={job.id}>
-            {job.title}
-            <button
-              onClick={() =>
-                send({
-                  type: 'job:update',
-                  payload: {
-                    id: job.id,
-                    completed: !job.completed,
-                  },
-                })
-              }
-            >
-              Toggle completion
-            </button>
-            <span>Status: {job.completed ? 'Completed' : 'In progress'}</span>
-            <button
-              disabled={connectionStatus !== CONNECTION_STATUS.CONNECTED}
-              onClick={() => send({ type: 'job:delete', payload: { id: job.id } })}
-            >
-              Delete
-            </button>
-          </li>
-        ))}
-      </ul>
-      <h2>Create requests</h2>
-      <ul>
-        {requests.map((request) => (
-          <li key={request.event.requestId}>
-            {request.event.payload.title} — {REQUEST_STATUS_LABEL[request.status]}
-            {request.status === REQUEST_STATUS.TIMED_OUT && (
-              <button
-                disabled={connectionStatus !== CONNECTION_STATUS.CONNECTED}
-                onClick={() => retry(request.event.requestId)}
-              >
-                Retry
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
-    </main>
+          onDelete={(id) => send({ type: 'job:delete', payload: { id } })}
+        />
+        <RequestsPanel requests={requests} connected={connected} onRetry={retry} />
+      </main>
+      <footer className={styles.footer}>
+        <span />
+        Live updates powered by WebSocket.
+      </footer>
+    </div>
   );
 }

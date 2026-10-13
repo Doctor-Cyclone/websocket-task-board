@@ -1,0 +1,144 @@
+.panel {
+  padding: 24px 18px;
+  min-height: 530px;
+  border-radius: 17px;
+  border: 1px solid #ffffff36;
+  background: linear-gradient(130deg, #ffffff09, #ffffff03);
+  backdrop-filter: blur(22px);
+  box-shadow:
+    0 18px 45px #00000015,
+    inset 0 1px #ffffff08;
+}
+.heading {
+  padding: 8px 12px 25px;
+  h2 {
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.7px;
+  }
+  p {
+    color: var(--text-muted);
+    font-size: 15px;
+    margin-top: 3px;
+  }
+}
+.list {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+}
+.card {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  padding: 23px 18px;
+  border: 1px solid #ffffff24;
+  border-radius: 14px;
+  background: linear-gradient(120deg, #ffffff04, #ffffff02);
+  min-height: 105px;
+}
+.file {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #ffffff06;
+  border: 1px solid #ffffff0e;
+  color: #c2c5c3;
+}
+.content {
+  min-width: 0;
+  h3 {
+    font-size: 15px;
+    font-weight: 550;
+    overflow-wrap: anywhere;
+    margin-bottom: 10px;
+  }
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 12px;
+  padding: 7px 10px;
+  font-size: 11px;
+  border: 1px solid;
+  svg {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+  }
+}
+.confirmed {
+  color: #c8ed9b;
+  border-color: #a4cb6438;
+  background: #8daa4422;
+}
+.warning {
+  color: #f7c35d;
+  border-color: #dda83f42;
+  background: #d3992520;
+}
+.pending {
+  color: #d1d2ce;
+  border-color: #ffffff28;
+  background: #ffffff05;
+}
+.retry {
+  grid-column: 2;
+  justify-self: end;
+  color: #ffe1af;
+  border: 1px solid #c99651;
+  border-radius: 10px;
+  background: #ffffff02;
+  padding: 8px 24px;
+  font-size: 13px;
+  &:hover:not(:disabled) {
+    background: #f4bc5912;
+  }
+}
+.empty {
+  min-height: 355px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 12px;
+  padding: 30px;
+  h3 {
+    font-weight: 500;
+    font-size: 16px;
+  }
+  p {
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+}
+@media (max-width: 600px) {
+  .panel {
+    padding: 16px 12px;
+    min-height: 300px;
+  }
+  .heading {
+    padding: 4px 4px 20px;
+    h2 {
+      font-size: 25px;
+    }
+    p {
+      font-size: 13px;
+    }
+  }
+  .card {
+    padding: 18px 14px;
+    gap: 12px;
+  }
+  .empty {
+    min-height: 200px;
+    padding: 24px 12px;
+  }
+}
