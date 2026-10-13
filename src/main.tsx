@@ -6,7 +6,7 @@ import './app/styles/global.scss';
 const root = document.getElementById('root');
 
 if (root === null) {
-  throw new Error('Не найден корневой элемент приложения');
+  throw new Error('Application root element not found');
 }
 
 createRoot(root).render(

@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const jobCreateEventSchema = z.object({
   type: z.literal('job:create'),
+  requestId: z.string(),
   payload: z.object({
     title: z.string(),
   }),
@@ -46,11 +47,17 @@ export const jobDeletedEventSchema = z.object({
   payload: z.object({ id: z.string() }),
 });
 
+export const jobAckEventSchema = z.object({
+  type: z.literal('request:ack'),
+  payload: z.object({ requestId: z.string() }),
+});
+
 export const serverEventSchema = z.discriminatedUnion('type', [
   jobCreatedEventSchema,
   jobsSyncEventSchema,
   jobUpdatedEventSchema,
   jobDeletedEventSchema,
+  jobAckEventSchema,
 ]);
 
 export const jobEventSchema = z.discriminatedUnion('type', [
@@ -69,3 +76,4 @@ export type JobEvent = z.infer<typeof jobEventSchema>;
 export type JobUpdatedEvent = z.infer<typeof jobUpdatedEventSchema>;
 export type JobDeleteEvent = z.infer<typeof jobDeleteEventSchema>;
 export type JobDeletedEvent = z.infer<typeof jobDeletedEventSchema>;
+export type JobAckEvent = z.infer<typeof jobAckEventSchema>;

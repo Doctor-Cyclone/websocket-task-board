@@ -1,161 +1,52 @@
+import { CONNECTION_STATUS } from '@/src/shared/connection';
 import styles from './BoardPage.module.scss';
-import { useEffect, useRef, useState } from 'react';
-
-import { type Job, type JobEvent, serverEventSchema } from '@/shared/protocol/index.js';
+import { useJobs } from '@/src/pages/board/model/useJobs';
 
 export default function BoardPage() {
-  const socketRef = useRef<WebSocket | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState('Отключено');
-  const [jobs, setJobs] = useState<Job[]>([]);
-
-  const connect = () => {
-    let wasConnected = false;
-
-    if (socketRef.current !== null) return;
-
-    const socket = new WebSocket('ws://localhost:3001');
-
-    socketRef.current = socket;
-    setConnectionStatus('Подключение...');
-
-    socket.onopen = () => {
-      console.log('[open] Соединение установлено');
-      setConnectionStatus('Подключено');
-      wasConnected = true;
-    };
-
-    socket.onerror = (event) => {
-      console.error('[error] Ошибка соединения', event);
-      setConnectionStatus('Ошибка соединения');
-    };
-
-    socket.onclose = (event) => {
-      if (!wasConnected) {
-        setConnectionStatus('Не удалось подключиться');
-      } else if (event.wasClean) {
-        setConnectionStatus('Отключено');
-      } else {
-        setConnectionStatus('Соединение потеряно');
-      }
-
-      console.log('[close] Соединение закрыто', {
-        code: event.code,
-        reason: event.reason,
-        wasClean: event.wasClean,
-      });
-
-      socketRef.current = null;
-    };
-
-    socket.onmessage = (event) => {
-      let parsedMessage: unknown;
-
-      try {
-        parsedMessage = JSON.parse(event.data);
-      } catch {
-        console.error('Сервер прислал некорректный JSON');
-        return;
-      }
-
-      const result = serverEventSchema.safeParse(parsedMessage);
-
-      if (!result.success) {
-        console.error('Неверное событие сервера:', result.error.issues);
-        return;
-      }
-
-      const serverJob = result.data;
-
-      switch (serverJob.type) {
-        case 'job:created':
-          setJobs((previousJobs) => [...previousJobs, serverJob.payload]);
-          break;
-
-        case 'jobs:sync':
-          setJobs(serverJob.payload);
-          break;
-
-        case 'job:updated':
-          setJobs((previousJobs) =>
-            previousJobs.map((currentJob) =>
-              currentJob.id === serverJob.payload.id ? serverJob.payload : currentJob,
-            ),
-          );
-          break;
-        case 'job:deleted':
-          setJobs((previousJobs) => previousJobs.filter((job) => job.id !== serverJob.payload.id));
-          break;
-      }
-    };
-  };
-
-  const disconnect = () => {
-    const socket = socketRef.current;
-
-    if (socket === null) return;
-
-    setConnectionStatus('Отключение...');
-    socket.close(1000, 'Отключение пользователем');
-  };
-
-  const send = (message: JobEvent) => {
-    const socket = socketRef.current;
-
-    if (socket === null || socket.readyState !== WebSocket.OPEN) return;
-
-    socket.send(JSON.stringify(message));
-  };
-
-  useEffect(() => {
-    return () => {
-      const socket = socketRef.current;
-
-      if (socket === null) return;
-
-      socket.onopen = null;
-      socket.onerror = null;
-      socket.onclose = null;
-      socket.onmessage = null;
-
-      socket.close();
-      socketRef.current = null;
-    };
-  }, []);
+  const { connectionStatus, jobs, connect, send, disconnect } = useJobs();
 
   return (
     <main className={styles.page}>
-      <h1 className={styles.title}>Доска задач</h1>
+      <h1 className={styles.title}>Job Board</h1>
 
-      <p role="status">Соединение: {connectionStatus}</p>
+      <p role="status">Connection: {connectionStatus}</p>
 
       <div>
         <button
           onClick={connect}
           disabled={
-            connectionStatus === 'Подключение...' ||
-            connectionStatus === 'Подключено' ||
-            connectionStatus === 'Отключение...'
+            connectionStatus === CONNECTION_STATUS.CONNECTING ||
+            connectionStatus === CONNECTION_STATUS.RECONNECTING ||
+            connectionStatus === CONNECTION_STATUS.CONNECTED ||
+            connectionStatus === CONNECTION_STATUS.DISCONNECTING
           }
         >
-          Подключиться
+          Connect
         </button>
 
-        <button onClick={disconnect} disabled={connectionStatus !== 'Подключено'}>
-          Отключиться
+        <button
+          onClick={disconnect}
+          disabled={
+            connectionStatus === CONNECTION_STATUS.DISCONNECTED ||
+            connectionStatus === CONNECTION_STATUS.DISCONNECTING
+          }
+        >
+          Disconnect
         </button>
 
-        {connectionStatus === 'Подключено' && (
+        {connectionStatus === CONNECTION_STATUS.CONNECTED && (
           <button
             onClick={() =>
               send({
                 type: 'job:create',
+                requestId: crypto.randomUUID(),
                 payload: {
-                  title: `Job №${Math.random()}`,
+                  title: `Job #${Math.random()}`,
                 },
               })
             }
           >
-            Отправить сообщение
+            Create job
           </button>
         )}
       </div>
@@ -174,14 +65,14 @@ export default function BoardPage() {
                 })
               }
             >
-              Обновить
+              Toggle completion
             </button>
-            <span>Статус: {job.completed ? 'Выполнено' : 'В работе'}</span>
+            <span>Status: {job.completed ? 'Completed' : 'In progress'}</span>
             <button
-              disabled={connectionStatus !== 'Подключено'}
+              disabled={connectionStatus !== CONNECTION_STATUS.CONNECTED}
               onClick={() => send({ type: 'job:delete', payload: { id: job.id } })}
             >
-              Удалить
+              Delete
             </button>
           </li>
         ))}

@@ -5,19 +5,22 @@ import {
   type JobsSyncEvent,
   type JobUpdatedEvent,
   type JobDeletedEvent,
+  type ServerEvent,
 } from '@/shared/protocol/index.js';
 import { randomUUID } from 'node:crypto';
 import type { JobCreatedEvent } from '@/shared/protocol/index.js';
+import { broadcast } from './transport/broadcast.js';
+import type { JobAckEvent } from '@/shared/protocol/events.js';
 
 const server = new WebSocketServer({ port: 3001 });
 const jobs: Job[] = [];
 
 server.on('listening', () => {
-  console.log('WebSocket-сервер запущен: ws://localhost:3001');
+  console.log('WebSocket server listening at ws://localhost:3001');
 });
 
 server.on('connection', (socket) => {
-  console.log('Клиент подключился');
+  console.log('Client connected');
 
   if (socket.readyState === WebSocket.OPEN) {
     const jobSyncEvent: JobsSyncEvent = {
@@ -29,11 +32,11 @@ server.on('connection', (socket) => {
   }
 
   socket.on('close', () => {
-    console.log('Клиент отключился');
+    console.log('Client disconnected');
   });
 
   socket.on('error', (error) => {
-    console.error('Ошибка соединения:', error.message);
+    console.error('Connection error:', error.message);
   });
 
   socket.on('message', (message) => {
@@ -42,19 +45,19 @@ server.on('connection', (socket) => {
     try {
       parsedMessage = JSON.parse(message.toString());
     } catch {
-      console.error('Ошибка парсинга: сообщение должно быть корректным JSON');
+      console.error('Invalid JSON: message must contain valid JSON');
       return;
     }
 
     const result = jobEventSchema.safeParse(parsedMessage);
 
     if (!result.success) {
-      console.error('Неверное событие:', result.error.issues);
+      console.error('Invalid event:', result.error.issues);
       return;
     }
 
     const event = result.data;
-    let jobEventJson: string;
+    let serverEvent: ServerEvent;
 
     switch (event.type) {
       case 'job:create':
@@ -71,13 +74,19 @@ server.on('connection', (socket) => {
           payload: createdJob,
         };
 
-        jobEventJson = JSON.stringify(jobCreatedEvent);
+        const jobAckEvent: JobAckEvent = {
+          type: 'request:ack',
+          payload: { requestId: event.requestId },
+        };
+
+        socket.send(JSON.stringify(jobAckEvent));
+        serverEvent = jobCreatedEvent;
         break;
       case 'job:update':
         const updatedJob = jobs.find((job) => job.id === event.payload.id);
 
         if (!updatedJob) {
-          console.error('Не найдено такой задачи');
+          console.error('Job not found');
           return;
         }
 
@@ -88,13 +97,13 @@ server.on('connection', (socket) => {
           payload: updatedJob,
         };
 
-        jobEventJson = JSON.stringify(jobUpdatedEvent);
+        serverEvent = jobUpdatedEvent;
         break;
       case 'job:delete':
         const jobIndex = jobs.findIndex((job) => job.id === event.payload.id);
 
         if (jobIndex === -1) {
-          console.error('Не найдено такой задачи');
+          console.error('Job not found');
           return;
         }
 
@@ -105,18 +114,14 @@ server.on('connection', (socket) => {
           payload: { id: event.payload.id },
         };
 
-        jobEventJson = JSON.stringify(jobDeletedEvent);
+        serverEvent = jobDeletedEvent;
         break;
     }
 
-    server.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(jobEventJson);
-      }
-    });
+    broadcast(server, serverEvent);
   });
 });
 
 server.on('error', (error) => {
-  console.error('Ошибка сервера:', error.message);
+  console.error('Server error:', error.message);
 });
