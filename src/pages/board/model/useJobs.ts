@@ -1,6 +1,7 @@
 import { CONNECTION_STATUS, type ConnectionStatus } from '@/src/shared/connection';
 import { type Job, type JobEvent, serverEventSchema } from '@/shared/protocol';
 import { useEffect, useRef, useState } from 'react';
+import { REQUEST_STATUS, type CreateRequest } from './requests';
 
 const RECONNECT_BASE_DELAY_MS = 2000;
 const RECONNECT_MAX_DELAY_MS = 30000;
@@ -14,6 +15,7 @@ export const useJobs = () => {
   const pendingRequestsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [requests, setRequests] = useState<CreateRequest[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(
     CONNECTION_STATUS.DISCONNECTED,
   );
@@ -110,6 +112,13 @@ export const useJobs = () => {
           }
 
           console.log('[ack] Request confirmed:', serverJob.payload.requestId);
+          setRequests((previous) =>
+            previous.map((request) =>
+              request.event.requestId === requestId
+                ? { ...request, status: REQUEST_STATUS.CONFIRMED }
+                : request,
+            ),
+          );
           break;
         case 'job:created':
           setJobs((previousJobs) => [...previousJobs, serverJob.payload]);
@@ -140,6 +149,13 @@ export const useJobs = () => {
 
     pendingRequestsRef.current.forEach((timer) => clearTimeout(timer));
     pendingRequestsRef.current.clear();
+    setRequests((previous) =>
+      previous.map((request) =>
+        request.status === REQUEST_STATUS.PENDING
+          ? { ...request, status: REQUEST_STATUS.TIMED_OUT }
+          : request,
+      ),
+    );
 
     if (reconnectTimerRef.current !== null) {
       clearTimeout(reconnectTimerRef.current);
@@ -163,11 +179,32 @@ export const useJobs = () => {
     if (message.type === 'job:create') {
       if (pendingRequestsRef.current.has(message.requestId)) return;
 
+      setRequests((previous) => {
+        const exists = previous.some((request) => request.event.requestId === message.requestId);
+
+        if (exists) {
+          return previous.map((request) =>
+            request.event.requestId === message.requestId
+              ? { ...request, status: REQUEST_STATUS.PENDING }
+              : request,
+          );
+        }
+
+        return [...previous, { event: message, status: REQUEST_STATUS.PENDING }];
+      });
+
       pendingRequestsRef.current.set(
         message.requestId,
         setTimeout(() => {
           pendingRequestsRef.current.delete(message.requestId);
           console.log('Request confirmation timed out: ', message.requestId);
+          setRequests((previous) =>
+            previous.map((request) =>
+              request.event.requestId === message.requestId
+                ? { ...request, status: REQUEST_STATUS.TIMED_OUT }
+                : request,
+            ),
+          );
         }, REQUEST_ACK_TIMEOUT_MS),
       );
     }
@@ -179,10 +216,23 @@ export const useJobs = () => {
         const timer = pendingRequestsRef.current.get(message.requestId);
         if (timer !== undefined) clearTimeout(timer);
         pendingRequestsRef.current.delete(message.requestId);
+        setRequests((previous) =>
+          previous.map((request) =>
+            request.event.requestId === message.requestId
+              ? { ...request, status: REQUEST_STATUS.TIMED_OUT }
+              : request,
+          ),
+        );
       }
 
       console.error('Failed to send request:', error);
     }
+  };
+
+  const retry = (requestId: string) => {
+    const request = requests.find((entry) => entry.event.requestId === requestId);
+    if (!request || request.status !== REQUEST_STATUS.TIMED_OUT) return;
+    send(request.event);
   };
 
   useEffect(() => {
@@ -213,5 +263,5 @@ export const useJobs = () => {
     };
   }, []);
 
-  return { connectionStatus, jobs, connect, disconnect, send };
+  return { connectionStatus, jobs, requests, connect, disconnect, send, retry };
 };

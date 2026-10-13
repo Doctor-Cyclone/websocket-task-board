@@ -1,9 +1,10 @@
 import { CONNECTION_STATUS } from '@/src/shared/connection';
 import styles from './BoardPage.module.scss';
 import { useJobs } from '@/src/pages/board/model/useJobs';
+import { REQUEST_STATUS, REQUEST_STATUS_LABEL } from '../model/requests';
 
 export default function BoardPage() {
-  const { connectionStatus, jobs, connect, send, disconnect } = useJobs();
+  const { connectionStatus, jobs, requests, connect, send, disconnect, retry } = useJobs();
 
   return (
     <main className={styles.page}>
@@ -74,6 +75,22 @@ export default function BoardPage() {
             >
               Delete
             </button>
+          </li>
+        ))}
+      </ul>
+      <h2>Create requests</h2>
+      <ul>
+        {requests.map((request) => (
+          <li key={request.event.requestId}>
+            {request.event.payload.title} — {REQUEST_STATUS_LABEL[request.status]}
+            {request.status === REQUEST_STATUS.TIMED_OUT && (
+              <button
+                disabled={connectionStatus !== CONNECTION_STATUS.CONNECTED}
+                onClick={() => retry(request.event.requestId)}
+              >
+                Retry
+              </button>
+            )}
           </li>
         ))}
       </ul>
