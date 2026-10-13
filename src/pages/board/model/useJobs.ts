@@ -4,12 +4,14 @@ import { useEffect, useRef, useState } from 'react';
 
 const RECONNECT_BASE_DELAY_MS = 2000;
 const RECONNECT_MAX_DELAY_MS = 30000;
+const REQUEST_ACK_TIMEOUT_MS = 5000;
 
 export const useJobs = () => {
   const socketRef = useRef<WebSocket | null>(null);
   const shouldReconnectRef = useRef<boolean>(false);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttemptRef = useRef(0);
+  const pendingRequestsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const [jobs, setJobs] = useState<Job[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(
@@ -99,6 +101,14 @@ export const useJobs = () => {
 
       switch (serverJob.type) {
         case 'request:ack':
+          const requestId = serverJob.payload.requestId;
+          const requestTimer = pendingRequestsRef.current.get(requestId);
+
+          if (requestTimer !== undefined) {
+            clearTimeout(requestTimer);
+            pendingRequestsRef.current.delete(requestId);
+          }
+
           console.log('[ack] Request confirmed:', serverJob.payload.requestId);
           break;
         case 'job:created':
@@ -128,6 +138,9 @@ export const useJobs = () => {
     shouldReconnectRef.current = false;
     reconnectAttemptRef.current = 0;
 
+    pendingRequestsRef.current.forEach((timer) => clearTimeout(timer));
+    pendingRequestsRef.current.clear();
+
     if (reconnectTimerRef.current !== null) {
       clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
@@ -147,11 +160,37 @@ export const useJobs = () => {
 
     if (socket === null || socket.readyState !== WebSocket.OPEN) return;
 
-    socket.send(JSON.stringify(message));
+    if (message.type === 'job:create') {
+      if (pendingRequestsRef.current.has(message.requestId)) return;
+
+      pendingRequestsRef.current.set(
+        message.requestId,
+        setTimeout(() => {
+          pendingRequestsRef.current.delete(message.requestId);
+          console.log('Request confirmation timed out: ', message.requestId);
+        }, REQUEST_ACK_TIMEOUT_MS),
+      );
+    }
+
+    try {
+      socket.send(JSON.stringify(message));
+    } catch (error) {
+      if (message.type === 'job:create') {
+        const timer = pendingRequestsRef.current.get(message.requestId);
+        if (timer !== undefined) clearTimeout(timer);
+        pendingRequestsRef.current.delete(message.requestId);
+      }
+
+      console.error('Failed to send request:', error);
+    }
   };
 
   useEffect(() => {
+    const pendingRequests = pendingRequestsRef.current;
+
     return () => {
+      pendingRequests.forEach((timer) => clearTimeout(timer));
+      pendingRequests.clear();
       shouldReconnectRef.current = false;
       reconnectAttemptRef.current = 0;
 

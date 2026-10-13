@@ -14,6 +14,7 @@ import type { JobAckEvent } from '@/shared/protocol/events.js';
 
 const server = new WebSocketServer({ port: 3001 });
 const jobs: Job[] = [];
+const processedCreateRequests = new Map<string, Job>();
 
 server.on('listening', () => {
   console.log('WebSocket server listening at ws://localhost:3001');
@@ -61,6 +62,16 @@ server.on('connection', (socket) => {
 
     switch (event.type) {
       case 'job:create':
+        if (processedCreateRequests.has(event.requestId)) {
+          const jobAckEvent: JobAckEvent = {
+            type: 'request:ack',
+            payload: { requestId: event.requestId },
+          };
+
+          socket.send(JSON.stringify(jobAckEvent));
+          return;
+        }
+
         const createdJob = {
           id: randomUUID(),
           title: event.payload.title,
@@ -68,6 +79,7 @@ server.on('connection', (socket) => {
         };
 
         jobs.push(createdJob);
+        processedCreateRequests.set(event.requestId, createdJob);
 
         const jobCreatedEvent: JobCreatedEvent = {
           type: 'job:created',
