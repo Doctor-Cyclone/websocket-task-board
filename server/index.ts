@@ -1,5 +1,11 @@
 import { WebSocketServer, WebSocket } from 'ws';
-import { type Job, jobCreateEventSchema, type JobsSyncEvent } from '@/shared/protocol/index.js';
+import {
+  type Job,
+  jobEventSchema,
+  type JobsSyncEvent,
+  type JobUpdatedEvent,
+  type JobDeletedEvent,
+} from '@/shared/protocol/index.js';
 import { randomUUID } from 'node:crypto';
 import type { JobCreatedEvent } from '@/shared/protocol/index.js';
 
@@ -40,31 +46,72 @@ server.on('connection', (socket) => {
       return;
     }
 
-    const result = jobCreateEventSchema.safeParse(parsedMessage);
+    const result = jobEventSchema.safeParse(parsedMessage);
 
     if (!result.success) {
       console.error('Неверное событие:', result.error.issues);
       return;
     }
 
-    const createdJob = {
-      id: randomUUID(),
-      title: result.data.payload.title,
-      completed: false,
-    };
+    const event = result.data;
+    let jobEventJson: string;
 
-    jobs.push(createdJob);
+    switch (event.type) {
+      case 'job:create':
+        const createdJob = {
+          id: randomUUID(),
+          title: event.payload.title,
+          completed: false,
+        };
 
-    const jobCreatedEvent: JobCreatedEvent = {
-      type: 'job:created',
-      payload: createdJob,
-    };
+        jobs.push(createdJob);
 
-    const eventJson = JSON.stringify(jobCreatedEvent);
+        const jobCreatedEvent: JobCreatedEvent = {
+          type: 'job:created',
+          payload: createdJob,
+        };
+
+        jobEventJson = JSON.stringify(jobCreatedEvent);
+        break;
+      case 'job:update':
+        const updatedJob = jobs.find((job) => job.id === event.payload.id);
+
+        if (!updatedJob) {
+          console.error('Не найдено такой задачи');
+          return;
+        }
+
+        updatedJob.completed = event.payload.completed;
+
+        const jobUpdatedEvent: JobUpdatedEvent = {
+          type: 'job:updated',
+          payload: updatedJob,
+        };
+
+        jobEventJson = JSON.stringify(jobUpdatedEvent);
+        break;
+      case 'job:delete':
+        const jobIndex = jobs.findIndex((job) => job.id === event.payload.id);
+
+        if (jobIndex === -1) {
+          console.error('Не найдено такой задачи');
+          return;
+        }
+
+        jobs.splice(jobIndex, 1);
+
+        const jobDeletedEvent: JobDeletedEvent = {
+          type: 'job:deleted',
+          payload: { id: event.payload.id },
+        };
+
+        jobEventJson = JSON.stringify(jobDeletedEvent);
+        break;
+    }
 
     server.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(eventJson);
+        client.send(jobEventJson);
       }
     });
   });

@@ -1,7 +1,7 @@
 import styles from './BoardPage.module.scss';
 import { useEffect, useRef, useState } from 'react';
 
-import { type Job, type JobCreateEvent, serverEventSchema } from '@/shared/protocol/index.js';
+import { type Job, type JobEvent, serverEventSchema } from '@/shared/protocol/index.js';
 
 export default function BoardPage() {
   const socketRef = useRef<WebSocket | null>(null);
@@ -64,15 +64,26 @@ export default function BoardPage() {
         return;
       }
 
-      const job = result.data;
+      const serverJob = result.data;
 
-      switch (job.type) {
+      switch (serverJob.type) {
         case 'job:created':
-          setJobs((previousJobs) => [...previousJobs, job.payload]);
+          setJobs((previousJobs) => [...previousJobs, serverJob.payload]);
           break;
 
         case 'jobs:sync':
-          setJobs(job.payload);
+          setJobs(serverJob.payload);
+          break;
+
+        case 'job:updated':
+          setJobs((previousJobs) =>
+            previousJobs.map((currentJob) =>
+              currentJob.id === serverJob.payload.id ? serverJob.payload : currentJob,
+            ),
+          );
+          break;
+        case 'job:deleted':
+          setJobs((previousJobs) => previousJobs.filter((job) => job.id !== serverJob.payload.id));
           break;
       }
     };
@@ -87,7 +98,7 @@ export default function BoardPage() {
     socket.close(1000, 'Отключение пользователем');
   };
 
-  const send = (message: JobCreateEvent) => {
+  const send = (message: JobEvent) => {
     const socket = socketRef.current;
 
     if (socket === null || socket.readyState !== WebSocket.OPEN) return;
@@ -150,7 +161,29 @@ export default function BoardPage() {
       </div>
       <ul>
         {jobs.map((job) => (
-          <li key={job.id}>{job.title}</li>
+          <li key={job.id}>
+            {job.title}
+            <button
+              onClick={() =>
+                send({
+                  type: 'job:update',
+                  payload: {
+                    id: job.id,
+                    completed: !job.completed,
+                  },
+                })
+              }
+            >
+              Обновить
+            </button>
+            <span>Статус: {job.completed ? 'Выполнено' : 'В работе'}</span>
+            <button
+              disabled={connectionStatus !== 'Подключено'}
+              onClick={() => send({ type: 'job:delete', payload: { id: job.id } })}
+            >
+              Удалить
+            </button>
+          </li>
         ))}
       </ul>
     </main>

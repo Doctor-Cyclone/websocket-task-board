@@ -4,11 +4,21 @@ export {
   jobSchema,
   jobsSyncEventSchema,
   serverEventSchema,
+  jobUpdateEventSchema,
+  jobEventSchema,
+  jobUpdatedEventSchema,
+  jobDeleteEventSchema,
+  jobDeletedEventSchema,
 } from './events.js';
 export type {
   JobCreateEvent,
   JobCreatedEvent,
   Job,
   JobsSyncEvent,
-  ServerEventSchema,
+  ServerEvent,
+  JobUpdateEvent,
+  JobEvent,
+  JobUpdatedEvent,
+  JobDeleteEvent,
+  JobDeletedEvent,
 } from './events.js';
