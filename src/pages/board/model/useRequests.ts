@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { RequestEvent } from './requests';
 import { REQUEST_STATUS, type TrackedRequest, type RequestStatus } from './requests';
+import { MAX_REQUEST_HISTORY } from '@/shared/limits';
 
 const REQUEST_ACK_TIMEOUT_MS = 5000;
 type TransmitRequestEvent = (event: RequestEvent) => boolean;
@@ -50,6 +51,8 @@ export const useRequests = () => {
   ): boolean => {
     if (pendingRequestsRef.current.has(event.requestId)) return false;
 
+    if (pendingRequestsRef.current.size >= MAX_REQUEST_HISTORY) return false;
+
     setRequests((previous) => {
       const exists = previous.some((request) => request.event.requestId === event.requestId);
 
@@ -61,7 +64,20 @@ export const useRequests = () => {
         );
       }
 
-      return [...previous, { event, title, status: REQUEST_STATUS.PENDING }];
+      const next: TrackedRequest[] = [
+        ...previous,
+        { event, title, status: REQUEST_STATUS.PENDING },
+      ];
+
+      while (next.length > MAX_REQUEST_HISTORY) {
+        const removable = next.findIndex((request) => request.status !== REQUEST_STATUS.PENDING);
+
+        if (removable === -1) break;
+
+        next.splice(removable, 1);
+      }
+
+      return next;
     });
 
     const timer = setTimeout(() => {

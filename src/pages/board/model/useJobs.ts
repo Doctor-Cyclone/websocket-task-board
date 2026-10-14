@@ -1,3 +1,4 @@
+import { MAX_CACHED_ROOMS, MAX_JOBS_PER_ROOM } from '@/shared/limits';
 import { useWebSocket } from '@/src/shared/connection/useWebSocket';
 import {
   type Job,
@@ -41,7 +42,15 @@ export const useJobs = (room: Room, name = 'Guest') => {
     const roomName = activeRoomRef.current;
     const nextJobs = update(jobsCacheRef.current.get(roomName) ?? []);
 
-    jobsCacheRef.current.set(roomName, nextJobs);
+    jobsCacheRef.current.delete(roomName);
+    jobsCacheRef.current.set(roomName, nextJobs.slice(-MAX_JOBS_PER_ROOM));
+    while (jobsCacheRef.current.size > MAX_CACHED_ROOMS) {
+      const oldest = jobsCacheRef.current.keys().next().value;
+
+      if (oldest === undefined) break;
+
+      jobsCacheRef.current.delete(oldest);
+    }
 
     setJobs(nextJobs);
   };

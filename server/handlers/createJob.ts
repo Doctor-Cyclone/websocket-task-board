@@ -1,3 +1,4 @@
+import { MAX_JOBS_PER_ROOM } from '@/shared/limits/index.js';
 import { randomUUID } from 'node:crypto';
 import type { WebSocket } from 'ws';
 import type { Job, JobCreateEvent, JobCreatedEvent } from '@/shared/protocol/index.js';
@@ -11,6 +12,15 @@ export function createJob(
 ): JobCreatedEvent | undefined {
   if (roomState.processedCreateRequests.has(event.requestId)) {
     sendEvent(socket, { type: 'request:ack', payload: { requestId: event.requestId } });
+
+    return;
+  }
+
+  if (roomState.jobs.length >= MAX_JOBS_PER_ROOM) {
+    sendEvent(socket, {
+      type: 'request:error',
+      payload: { requestId: event.requestId, message: 'This room has reached its job limit.' },
+    });
 
     return;
   }

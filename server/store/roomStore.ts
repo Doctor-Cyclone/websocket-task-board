@@ -1,3 +1,4 @@
+import { MAX_PROCESSED_REQUESTS } from '@/shared/limits/index.js';
 import type { Job } from '@/shared/protocol/index.js';
 import { DEFAULT_STORAGE_PATH, loadBoards, saveBoards } from './fileStorage.js';
 import type { StoredBoards } from './storageSchema.js';
@@ -31,6 +32,21 @@ export function createRoomStore(storagePath = DEFAULT_STORAGE_PATH) {
   };
 
   const save = () => {
+    rooms.forEach((state) => {
+      for (const collection of [
+        state.processedCreateRequests,
+        state.processedUpdateRequests,
+        state.processedDeleteRequests,
+      ]) {
+        while (collection.size > MAX_PROCESSED_REQUESTS) {
+          const oldest = collection.keys().next().value;
+
+          if (oldest === undefined) break;
+
+          collection.delete(oldest);
+        }
+      }
+    });
     const snapshot: StoredBoards = {
       formatVersion: 1,
       rooms: [...rooms].map(([name, state]) => ({
