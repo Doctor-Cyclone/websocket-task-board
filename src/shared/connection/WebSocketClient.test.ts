@@ -197,4 +197,25 @@ describe('WebSocketClient', () => {
     vi.advanceTimersByTime(2000);
     expect(FakeSocket.instances).toHaveLength(2);
   });
+  it('pauses offline and resumes the same room when connectivity returns', () => {
+    client.connect(url);
+    latestSocket().open();
+    client.setOnline(false);
+    expect(onStatus).toHaveBeenLastCalledWith(CONNECTION_STATUS.OFFLINE);
+    expect(vi.getTimerCount()).toBe(0);
+    vi.advanceTimersByTime(60000);
+    expect(FakeSocket.instances).toHaveLength(1);
+    client.setOnline(true);
+    expect(FakeSocket.instances).toHaveLength(2);
+    expect(latestSocket().url).toBe(url);
+  });
+
+  it('does not reconnect after the user disconnects while offline', () => {
+    client.connect(url);
+    client.setOnline(false);
+    client.disconnect();
+    client.setOnline(true);
+    expect(FakeSocket.instances).toHaveLength(1);
+    expect(client.canChangeConnection()).toBe(true);
+  });
 });
