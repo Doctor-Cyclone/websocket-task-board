@@ -28,11 +28,11 @@ export default function BoardPage() {
         <JobsPanel
           jobs={jobs}
           connected={connected}
-          onCreate={() =>
+          onCreate={(title) =>
             send({
               type: 'job:create',
               requestId: crypto.randomUUID(),
-              payload: { title: `Job #${jobs.length + 1}` },
+              payload: { title },
             })
           }
           onToggle={(job) =>

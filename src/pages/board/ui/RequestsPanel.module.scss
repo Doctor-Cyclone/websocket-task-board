@@ -142,3 +142,14 @@
     padding: 24px 12px;
   }
 }
+.failed {
+  color: #ffb5ad;
+  border-color: #f58d8040;
+  background: #b6443420;
+}
+.error {
+  margin-top: 10px;
+  color: #ffb5ad;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}

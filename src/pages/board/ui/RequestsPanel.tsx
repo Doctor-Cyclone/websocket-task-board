@@ -24,6 +24,7 @@ export function RequestsPanel({ requests, connected, onRetry }: Props) {
           {requests.map((request) => {
             const confirmed = request.status === REQUEST_STATUS.CONFIRMED;
             const timedOut = request.status === REQUEST_STATUS.TIMED_OUT;
+            const failed = request.status === REQUEST_STATUS.FAILED;
 
             return (
               <li key={request.event.requestId} className={styles.card}>
@@ -31,13 +32,18 @@ export function RequestsPanel({ requests, connected, onRetry }: Props) {
                   <Icon name="file" />
                 </span>
                 <div className={styles.content}>
-                  <h3>{request.event.payload.title}</h3>
+                  <h3>{request.event.payload.title.trim() || 'Untitled job'}</h3>
                   <span
-                    className={`${styles.badge} ${confirmed ? styles.confirmed : timedOut ? styles.warning : styles.pending}`}
+                    className={`${styles.badge} ${confirmed ? styles.confirmed : failed ? styles.failed : timedOut ? styles.warning : styles.pending}`}
                   >
                     <Icon name={confirmed ? 'check' : 'clock'} />
                     {REQUEST_STATUS_LABEL[request.status]}
                   </span>
+                  {failed && (
+                    <p className={styles.error} role="alert">
+                      {request.error}
+                    </p>
+                  )}
                 </div>
                 {timedOut && (
                   <button

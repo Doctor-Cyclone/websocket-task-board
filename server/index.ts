@@ -2,6 +2,8 @@ import { WebSocketServer, WebSocket } from 'ws';
 import {
   type Job,
   jobEventSchema,
+  jobCreateEventSchema,
+  type RequestErrorEvent,
   type JobsSyncEvent,
   type JobUpdatedEvent,
   type JobDeletedEvent,
@@ -17,6 +19,7 @@ const server = new WebSocketServer({ port: 3001 });
 const jobsByRoom: Map<string, Job[]> = new Map();
 const roomBySocket: Map<WebSocket, string> = new Map();
 const processedCreateRequestsByRoom = new Map<string, Map<string, Job>>();
+const createRequestIdentitySchema = jobCreateEventSchema.pick({ type: true, requestId: true });
 
 server.on('listening', () => {
   console.log('WebSocket server listening at ws://localhost:3001');
@@ -76,6 +79,19 @@ server.on('connection', (socket, request) => {
 
     if (!result.success) {
       console.error('Invalid event:', result.error.issues);
+
+      const identity = createRequestIdentitySchema.safeParse(parsedMessage);
+
+      if (identity.success && socket.readyState === WebSocket.OPEN) {
+        const errorEvent: RequestErrorEvent = {
+          type: 'request:error',
+          payload: {
+            requestId: identity.data.requestId,
+            message: result.error.issues[0]?.message ?? 'Invalid create request',
+          },
+        };
+        socket.send(JSON.stringify(errorEvent));
+      }
 
       return;
     }

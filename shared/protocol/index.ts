@@ -1,4 +1,5 @@
 export {
+  requestErrorEventSchema,
   jobCreateEventSchema,
   jobCreatedEventSchema,
   jobSchema,
@@ -11,6 +12,7 @@ export {
   jobDeletedEventSchema,
 } from './events.js';
 export type {
+  RequestErrorEvent,
   JobCreateEvent,
   JobCreatedEvent,
   Job,
