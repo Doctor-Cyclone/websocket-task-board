@@ -4,14 +4,26 @@ import { BoardHeader } from './BoardHeader';
 import { JobsPanel } from './JobsPanel';
 import { RequestsPanel } from './RequestsPanel';
 import styles from './BoardPage.module.scss';
+import { useState } from 'react';
+import { DEFAULT_ROOM, type Room } from '@/shared/rooms';
 
 export default function BoardPage() {
-  const { connectionStatus, jobs, requests, connect, send, disconnect, retry } = useJobs();
+  const [room, setRoom] = useState<Room>(DEFAULT_ROOM);
+  const { connectionStatus, jobs, requests, connect, send, disconnect, retry, changeRoom } =
+    useJobs(room);
   const connected = connectionStatus === CONNECTION_STATUS.CONNECTED;
 
   return (
     <div className={styles.page}>
-      <BoardHeader status={connectionStatus} onConnect={connect} onDisconnect={disconnect} />
+      <BoardHeader
+        status={connectionStatus}
+        room={room}
+        onRoomChange={(nextRoom) => {
+          if (changeRoom(nextRoom)) setRoom(nextRoom);
+        }}
+        onConnect={connect}
+        onDisconnect={disconnect}
+      />
       <main className={styles.content}>
         <JobsPanel
           jobs={jobs}

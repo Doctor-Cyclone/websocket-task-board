@@ -11,28 +11,49 @@ import { randomUUID } from 'node:crypto';
 import type { JobCreatedEvent } from '@/shared/protocol/index.js';
 import { broadcast } from './transport/broadcast.js';
 import type { JobAckEvent } from '@/shared/protocol/events.js';
+import { DEFAULT_ROOM } from '@/shared/rooms/index.js';
 
 const server = new WebSocketServer({ port: 3001 });
-const jobs: Job[] = [];
-const processedCreateRequests = new Map<string, Job>();
+const jobsByRoom: Map<string, Job[]> = new Map();
+const roomBySocket: Map<WebSocket, string> = new Map();
+const processedCreateRequestsByRoom = new Map<string, Map<string, Job>>();
 
 server.on('listening', () => {
   console.log('WebSocket server listening at ws://localhost:3001');
 });
 
-server.on('connection', (socket) => {
-  console.log('Client connected');
+server.on('connection', (socket, request) => {
+  const url = new URL(request.url ?? '/', 'http://localhost:3001');
+  const room = url.searchParams.get('room')?.trim() || DEFAULT_ROOM;
+  let roomJobs = jobsByRoom.get(room);
+
+  if (roomJobs === undefined) {
+    roomJobs = [];
+    jobsByRoom.set(room, roomJobs);
+  }
+
+  let roomProcessedRequests = processedCreateRequestsByRoom.get(room);
+
+  if (roomProcessedRequests === undefined) {
+    roomProcessedRequests = new Map<string, Job>();
+    processedCreateRequestsByRoom.set(room, roomProcessedRequests);
+  }
+
+  console.log('Client connected to room:', room);
 
   if (socket.readyState === WebSocket.OPEN) {
     const jobSyncEvent: JobsSyncEvent = {
       type: 'jobs:sync',
-      payload: jobs,
+      payload: roomJobs,
     };
 
     socket.send(JSON.stringify(jobSyncEvent));
   }
 
+  roomBySocket.set(socket, room);
+
   socket.on('close', () => {
+    roomBySocket.delete(socket);
     console.log('Client disconnected');
   });
 
@@ -62,7 +83,7 @@ server.on('connection', (socket) => {
 
     switch (event.type) {
       case 'job:create':
-        if (processedCreateRequests.has(event.requestId)) {
+        if (roomProcessedRequests.has(event.requestId)) {
           const jobAckEvent: JobAckEvent = {
             type: 'request:ack',
             payload: { requestId: event.requestId },
@@ -78,8 +99,8 @@ server.on('connection', (socket) => {
           completed: false,
         };
 
-        jobs.push(createdJob);
-        processedCreateRequests.set(event.requestId, createdJob);
+        roomJobs.push(createdJob);
+        roomProcessedRequests.set(event.requestId, createdJob);
 
         const jobCreatedEvent: JobCreatedEvent = {
           type: 'job:created',
@@ -95,7 +116,7 @@ server.on('connection', (socket) => {
         serverEvent = jobCreatedEvent;
         break;
       case 'job:update':
-        const updatedJob = jobs.find((job) => job.id === event.payload.id);
+        const updatedJob = roomJobs.find((job) => job.id === event.payload.id);
 
         if (!updatedJob) {
           console.error('Job not found');
@@ -112,14 +133,14 @@ server.on('connection', (socket) => {
         serverEvent = jobUpdatedEvent;
         break;
       case 'job:delete':
-        const jobIndex = jobs.findIndex((job) => job.id === event.payload.id);
+        const jobIndex = roomJobs.findIndex((job) => job.id === event.payload.id);
 
         if (jobIndex === -1) {
           console.error('Job not found');
           return;
         }
 
-        jobs.splice(jobIndex, 1);
+        roomJobs.splice(jobIndex, 1);
 
         const jobDeletedEvent: JobDeletedEvent = {
           type: 'job:deleted',
@@ -130,7 +151,7 @@ server.on('connection', (socket) => {
         break;
     }
 
-    broadcast(server, serverEvent);
+    broadcast(server, serverEvent, room, roomBySocket);
   });
 });
 

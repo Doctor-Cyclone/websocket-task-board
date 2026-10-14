@@ -2,12 +2,15 @@ import { CONNECTION_STATUS, type ConnectionStatus } from '@/src/shared/connectio
 import { type Job, type JobEvent, serverEventSchema } from '@/shared/protocol';
 import { useEffect, useRef, useState } from 'react';
 import { REQUEST_STATUS, type CreateRequest } from './requests';
+import type { Room } from '@/shared/rooms';
 
 const RECONNECT_BASE_DELAY_MS = 2000;
 const RECONNECT_MAX_DELAY_MS = 30000;
 const REQUEST_ACK_TIMEOUT_MS = 5000;
 
-export const useJobs = () => {
+export const useJobs = (room: Room) => {
+  const activeRoomRef = useRef(room);
+  const jobsCacheRef = useRef<Map<Room, Job[]>>(new Map());
   const socketRef = useRef<WebSocket | null>(null);
   const shouldReconnectRef = useRef<boolean>(false);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -20,17 +23,46 @@ export const useJobs = () => {
     CONNECTION_STATUS.DISCONNECTED,
   );
 
-  const connect = () => {
-    shouldReconnectRef.current = true;
+  const changeRoom = (nextRoom: Room): boolean => {
+    if (socketRef.current !== null || shouldReconnectRef.current) return false;
 
+    const roomName = nextRoom;
+
+    if (activeRoomRef.current !== roomName) {
+      pendingRequestsRef.current.forEach((timer) => clearTimeout(timer));
+      pendingRequestsRef.current.clear();
+      setRequests([]);
+      setJobs(jobsCacheRef.current.get(roomName) ?? []);
+      activeRoomRef.current = roomName;
+    }
+
+    return true;
+  };
+
+  const connect = () => {
     if (socketRef.current !== null) return;
+
+    if (!shouldReconnectRef.current) {
+      if (!changeRoom(room)) return;
+    }
+
+    shouldReconnectRef.current = true;
 
     if (reconnectTimerRef.current !== null) {
       clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
     }
 
-    const socket = new WebSocket('ws://localhost:3001');
+    const url = new URL('ws://localhost:3001');
+    url.searchParams.set('room', activeRoomRef.current);
+    const connectionRoom = activeRoomRef.current;
+    const socket = new WebSocket(url);
+
+    const updateRoomJobs = (update: (previousJobs: Job[]) => Job[]) => {
+      const nextJobs = update(jobsCacheRef.current.get(connectionRoom) ?? []);
+      jobsCacheRef.current.set(connectionRoom, nextJobs);
+      setJobs(nextJobs);
+    };
 
     socketRef.current = socket;
     setConnectionStatus(CONNECTION_STATUS.CONNECTING);
@@ -83,6 +115,7 @@ export const useJobs = () => {
     };
 
     socket.onmessage = (event) => {
+      if (socketRef.current !== socket || activeRoomRef.current !== connectionRoom) return;
       let parsedMessage: unknown;
 
       try {
@@ -121,22 +154,24 @@ export const useJobs = () => {
           );
           break;
         case 'job:created':
-          setJobs((previousJobs) => [...previousJobs, serverJob.payload]);
+          updateRoomJobs((previousJobs) => [...previousJobs, serverJob.payload]);
           break;
 
         case 'jobs:sync':
-          setJobs(serverJob.payload);
+          updateRoomJobs(() => serverJob.payload);
           break;
 
         case 'job:updated':
-          setJobs((previousJobs) =>
+          updateRoomJobs((previousJobs) =>
             previousJobs.map((currentJob) =>
               currentJob.id === serverJob.payload.id ? serverJob.payload : currentJob,
             ),
           );
           break;
         case 'job:deleted':
-          setJobs((previousJobs) => previousJobs.filter((job) => job.id !== serverJob.payload.id));
+          updateRoomJobs((previousJobs) =>
+            previousJobs.filter((job) => job.id !== serverJob.payload.id),
+          );
           break;
       }
     };
@@ -263,5 +298,5 @@ export const useJobs = () => {
     };
   }, []);
 
-  return { connectionStatus, jobs, requests, connect, disconnect, send, retry };
+  return { connectionStatus, jobs, requests, connect, disconnect, send, retry, changeRoom };
 };
