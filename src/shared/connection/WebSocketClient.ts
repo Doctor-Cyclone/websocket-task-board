@@ -1,5 +1,6 @@
 import { CONNECTION_STATUS, type ConnectionStatus } from './index';
 import { getReconnectDelay } from './reconnectPolicy';
+const CONNECTION_TIMEOUT_MS = 10000;
 
 type ClientOptions = {
   onStatus: (status: ConnectionStatus) => void;
@@ -10,6 +11,7 @@ export class WebSocketClient {
   private socket: WebSocket | null = null;
   private shouldReconnect = false;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private connectionTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempt = 0;
   private connectionUrl = '';
   private onMessage: ClientOptions['onMessage'];
@@ -85,12 +87,20 @@ export class WebSocketClient {
   }
 
   private cancelReconnect(): void {
+    this.clearConnectionTimer();
     this.shouldReconnect = false;
     this.reconnectAttempt = 0;
 
     if (this.reconnectTimer !== null) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
+    }
+  }
+
+  private clearConnectionTimer(): void {
+    if (this.connectionTimer !== null) {
+      clearTimeout(this.connectionTimer);
+      this.connectionTimer = null;
     }
   }
 
@@ -131,9 +141,25 @@ export class WebSocketClient {
     }
 
     this.socket = socket;
+    this.connectionTimer = setTimeout(() => {
+      this.connectionTimer = null;
+
+      if (this.socket !== socket || socket.readyState === WebSocket.OPEN) return;
+
+      console.warn('[connect] Connection timed out');
+      socket.onopen = null;
+      socket.onerror = null;
+      socket.onclose = null;
+      socket.onmessage = null;
+      this.socket = null;
+      socket.close();
+      this.scheduleReconnect();
+    }, CONNECTION_TIMEOUT_MS);
 
     socket.onopen = () => {
       if (!this.shouldReconnect || this.socket !== socket) return;
+
+      this.clearConnectionTimer();
 
       this.reconnectAttempt = 0;
       this.onStatus(CONNECTION_STATUS.CONNECTED);
@@ -150,6 +176,8 @@ export class WebSocketClient {
 
     socket.onclose = (event) => {
       if (this.socket !== socket) return;
+
+      this.clearConnectionTimer();
 
       console.log('[close] Connection closed', {
         code: event.code,

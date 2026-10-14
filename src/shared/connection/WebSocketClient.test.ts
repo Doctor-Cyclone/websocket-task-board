@@ -120,7 +120,7 @@ describe('WebSocketClient', () => {
   it('does not schedule two retries when error is followed by close', () => {
     client.connect(url);
     latestSocket().onerror?.(new Event('error'));
-    expect(vi.getTimerCount()).toBe(0);
+    expect(vi.getTimerCount()).toBe(1); // Only the connection watchdog.
     latestSocket().finishClose();
     expect(vi.getTimerCount()).toBe(1);
     vi.advanceTimersByTime(2000);
@@ -185,5 +185,16 @@ describe('WebSocketClient', () => {
     vi.advanceTimersByTime(60000);
     expect(FakeSocket.instances).toHaveLength(1);
     expect(vi.getTimerCount()).toBe(0);
+  });
+  it('times out a stalled connection and retries without leaving stale handlers', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    client.connect(url);
+    const stalled = latestSocket();
+    vi.advanceTimersByTime(10000);
+    expect(stalled.close).toHaveBeenCalled();
+    expect(stalled.onmessage).toBeNull();
+    expect(onStatus).toHaveBeenLastCalledWith(CONNECTION_STATUS.RECONNECTING);
+    vi.advanceTimersByTime(2000);
+    expect(FakeSocket.instances).toHaveLength(2);
   });
 });
