@@ -36,7 +36,11 @@ export default function BoardPage() {
             })
           }
           onToggle={(job) =>
-            send({ type: 'job:update', payload: { id: job.id, completed: !job.completed } })
+            send({
+              type: 'job:update',
+              requestId: crypto.randomUUID(),
+              payload: { id: job.id, completed: !job.completed, expectedVersion: job.version },
+            })
           }
           onDelete={(id) => send({ type: 'job:delete', payload: { id } })}
         />

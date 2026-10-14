@@ -1,7 +1,7 @@
 import { useWebSocket } from '@/src/shared/connection/useWebSocket';
 import { type Job, type JobEvent, serverEventSchema } from '@/shared/protocol';
 import { useRef, useState } from 'react';
-import { useCreateRequests } from './useCreateRequests';
+import { useRequests } from './useRequests';
 import type { Room } from '@/shared/rooms';
 
 export const useJobs = (room: Room) => {
@@ -10,7 +10,7 @@ export const useJobs = (room: Room) => {
 
   const [jobs, setJobs] = useState<Job[]>([]);
 
-  const createRequests = useCreateRequests();
+  const requestTracker = useRequests();
 
   const changeRoom = (nextRoom: Room): boolean => {
     if (!connection.canChangeConnection()) return false;
@@ -18,7 +18,7 @@ export const useJobs = (room: Room) => {
     const roomName = nextRoom;
 
     if (activeRoomRef.current !== roomName) {
-      createRequests.reset();
+      requestTracker.reset();
       setJobs(jobsCacheRef.current.get(roomName) ?? []);
       activeRoomRef.current = roomName;
     }
@@ -58,10 +58,20 @@ export const useJobs = (room: Room) => {
 
     switch (serverJob.type) {
       case 'request:error':
-        createRequests.fail(serverJob.payload.requestId, serverJob.payload.message);
+        requestTracker.fail(serverJob.payload.requestId, serverJob.payload.message);
+        const currentJob = serverJob.payload.currentJob;
+
+        if (currentJob) {
+          updateRoomJobs((previousJobs) =>
+            previousJobs.map((job) =>
+              job.id === currentJob.id && job.version <= currentJob.version ? currentJob : job,
+            ),
+          );
+        }
+
         break;
       case 'request:ack':
-        createRequests.confirm(serverJob.payload.requestId);
+        requestTracker.confirm(serverJob.payload.requestId);
 
         break;
       case 'job:created':
@@ -99,16 +109,24 @@ export const useJobs = (room: Room) => {
   };
 
   const disconnect = () => {
-    createRequests.cancelPending();
+    requestTracker.cancelPending();
     connection.disconnect();
   };
 
   const send = (message: JobEvent) => {
     if (!connection.canSend()) return;
 
-    if (message.type === 'job:create') {
-      createRequests.submitCreateRequest(message, (event) =>
-        connection.send(JSON.stringify(event)),
+    if (message.type === 'job:create' || message.type === 'job:update') {
+      const title =
+        message.type === 'job:create'
+          ? message.payload.title
+          : (jobsCacheRef.current
+              .get(activeRoomRef.current)
+              ?.find((job) => job.id === message.payload.id)?.title ?? 'Job update');
+      requestTracker.submitRequest(
+        message,
+        (event) => connection.send(JSON.stringify(event)),
+        title,
       );
     } else {
       connection.send(JSON.stringify(message));
@@ -118,13 +136,13 @@ export const useJobs = (room: Room) => {
   const retry = (requestId: string) => {
     if (!connection.canSend()) return;
 
-    createRequests.retry(requestId, (event) => connection.send(JSON.stringify(event)));
+    requestTracker.retry(requestId, (event) => connection.send(JSON.stringify(event)));
   };
 
   return {
     connectionStatus: connection.connectionStatus,
     jobs,
-    requests: createRequests.requests,
+    requests: requestTracker.requests,
     connect,
     disconnect,
     send,

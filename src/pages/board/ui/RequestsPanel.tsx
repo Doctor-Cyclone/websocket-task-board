@@ -1,15 +1,15 @@
-import { REQUEST_STATUS, REQUEST_STATUS_LABEL, type CreateRequest } from '../model/requests';
+import { REQUEST_STATUS, REQUEST_STATUS_LABEL, type TrackedRequest } from '../model/requests';
 import { Icon } from './Icon';
 import styles from './RequestsPanel.module.scss';
 
-type Props = { requests: CreateRequest[]; connected: boolean; onRetry: (id: string) => void };
+type Props = { requests: TrackedRequest[]; connected: boolean; onRetry: (id: string) => void };
 
 export function RequestsPanel({ requests, connected, onRetry }: Props) {
   return (
     <section className={styles.panel} aria-labelledby="requests-heading">
       <div className={styles.heading}>
         <h2 id="requests-heading">Requests</h2>
-        <p>Creation confirmations.</p>
+        <p>Creation and update confirmations.</p>
       </div>
       {requests.length === 0 ? (
         <div className={styles.empty}>
@@ -17,7 +17,7 @@ export function RequestsPanel({ requests, connected, onRetry }: Props) {
             <Icon name="file" />
           </span>
           <h3>Nothing waiting in the wings.</h3>
-          <p>Your creation requests will appear here.</p>
+          <p>Your creation and update requests will appear here.</p>
         </div>
       ) : (
         <ul className={styles.list}>
@@ -32,7 +32,10 @@ export function RequestsPanel({ requests, connected, onRetry }: Props) {
                   <Icon name="file" />
                 </span>
                 <div className={styles.content}>
-                  <h3>{request.event.payload.title.trim() || 'Untitled job'}</h3>
+                  <h3>{request.title.trim() || 'Untitled job'}</h3>
+                  <p className={styles.requestAction}>
+                    {request.event.type === 'job:create' ? 'Create job' : 'Update job'}
+                  </p>
                   <span
                     className={`${styles.badge} ${confirmed ? styles.confirmed : failed ? styles.failed : timedOut ? styles.warning : styles.pending}`}
                   >

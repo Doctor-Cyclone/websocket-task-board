@@ -16,6 +16,7 @@ export const jobSchema = z.object({
   id: z.string(),
   title: z.string(),
   completed: z.boolean(),
+  version: z.number().int().positive(),
 });
 
 export const jobCreatedEventSchema = z.object({
@@ -25,9 +26,11 @@ export const jobCreatedEventSchema = z.object({
 
 export const jobUpdateEventSchema = z.object({
   type: z.literal('job:update'),
+  requestId: z.string().min(1),
   payload: z.object({
     id: z.string(),
     completed: z.boolean(),
+    expectedVersion: z.number().int().positive(),
   }),
 });
 
@@ -58,7 +61,11 @@ export const jobAckEventSchema = z.object({
 
 export const requestErrorEventSchema = z.object({
   type: z.literal('request:error'),
-  payload: z.object({ requestId: z.string(), message: z.string() }),
+  payload: z.object({
+    requestId: z.string(),
+    message: z.string(),
+    currentJob: jobSchema.optional(),
+  }),
 });
 
 export const serverEventSchema = z.discriminatedUnion('type', [

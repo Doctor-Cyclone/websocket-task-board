@@ -1,4 +1,6 @@
-import type { JobCreateEvent } from '@/shared/protocol';
+import type { JobCreateEvent, JobUpdateEvent } from '@/shared/protocol';
+
+export type RequestEvent = JobCreateEvent | JobUpdateEvent;
 
 export const REQUEST_STATUS = {
   PENDING: 'pending',
@@ -9,8 +11,9 @@ export const REQUEST_STATUS = {
 
 export type RequestStatus = (typeof REQUEST_STATUS)[keyof typeof REQUEST_STATUS];
 
-export type CreateRequest = {
-  event: JobCreateEvent;
+export type TrackedRequest = {
+  event: RequestEvent;
+  title: string;
   status: RequestStatus;
   error?: string;
 };

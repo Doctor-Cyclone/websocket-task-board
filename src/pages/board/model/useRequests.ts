@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import type { JobCreateEvent } from '@/shared/protocol';
-import { REQUEST_STATUS, type CreateRequest, type RequestStatus } from './requests';
+import type { RequestEvent } from './requests';
+import { REQUEST_STATUS, type TrackedRequest, type RequestStatus } from './requests';
 
 const REQUEST_ACK_TIMEOUT_MS = 5000;
-type TransmitCreateEvent = (event: JobCreateEvent) => boolean;
+type TransmitRequestEvent = (event: RequestEvent) => boolean;
 
-export const useCreateRequests = () => {
-  const [requests, setRequests] = useState<CreateRequest[]>([]);
+export const useRequests = () => {
+  const [requests, setRequests] = useState<TrackedRequest[]>([]);
   const pendingRequestsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const clearTimer = (requestId: string) => {
@@ -43,7 +43,11 @@ export const useCreateRequests = () => {
     );
   };
 
-  const submitCreateRequest = (event: JobCreateEvent, transmit: TransmitCreateEvent): boolean => {
+  const submitRequest = (
+    event: RequestEvent,
+    transmit: TransmitRequestEvent,
+    title: string,
+  ): boolean => {
     if (pendingRequestsRef.current.has(event.requestId)) return false;
 
     setRequests((previous) => {
@@ -57,7 +61,7 @@ export const useCreateRequests = () => {
         );
       }
 
-      return [...previous, { event, status: REQUEST_STATUS.PENDING }];
+      return [...previous, { event, title, status: REQUEST_STATUS.PENDING }];
     });
 
     const timer = setTimeout(() => {
@@ -78,12 +82,12 @@ export const useCreateRequests = () => {
     return true;
   };
 
-  const retry = (requestId: string, transmit: TransmitCreateEvent): boolean => {
+  const retry = (requestId: string, transmit: TransmitRequestEvent): boolean => {
     const request = requests.find((entry) => entry.event.requestId === requestId);
 
     if (!request || request.status !== REQUEST_STATUS.TIMED_OUT) return false;
 
-    return submitCreateRequest(request.event, transmit);
+    return submitRequest(request.event, transmit, request.title);
   };
 
   const cancelPending = () => {
@@ -115,5 +119,5 @@ export const useCreateRequests = () => {
     };
   }, []);
 
-  return { requests, submitCreateRequest, confirm, fail, retry, cancelPending, reset };
+  return { requests, submitRequest, confirm, fail, retry, cancelPending, reset };
 };

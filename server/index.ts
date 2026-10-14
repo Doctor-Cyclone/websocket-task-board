@@ -3,6 +3,7 @@ import {
   type Job,
   jobEventSchema,
   jobCreateEventSchema,
+  jobUpdateEventSchema,
   type RequestErrorEvent,
   type JobsSyncEvent,
   type JobUpdatedEvent,
@@ -21,7 +22,9 @@ startHeartbeat(server);
 const jobsByRoom: Map<string, Job[]> = new Map();
 const roomBySocket: Map<WebSocket, string> = new Map();
 const processedCreateRequestsByRoom = new Map<string, Map<string, Job>>();
+const processedUpdateRequestsByRoom = new Map<string, Set<string>>();
 const createRequestIdentitySchema = jobCreateEventSchema.pick({ type: true, requestId: true });
+const updateRequestIdentitySchema = jobUpdateEventSchema.pick({ type: true, requestId: true });
 
 server.on('listening', () => {
   console.log('WebSocket server listening at ws://localhost:3001');
@@ -45,6 +48,12 @@ server.on('connection', (socket, request) => {
   }
 
   console.log('Client connected to room:', room);
+  let roomProcessedUpdates = processedUpdateRequestsByRoom.get(room);
+
+  if (roomProcessedUpdates === undefined) {
+    roomProcessedUpdates = new Set<string>();
+    processedUpdateRequestsByRoom.set(room, roomProcessedUpdates);
+  }
 
   if (socket.readyState === WebSocket.OPEN) {
     const jobSyncEvent: JobsSyncEvent = {
@@ -82,7 +91,9 @@ server.on('connection', (socket, request) => {
     if (!result.success) {
       console.error('Invalid event:', result.error.issues);
 
-      const identity = createRequestIdentitySchema.safeParse(parsedMessage);
+      const identity = createRequestIdentitySchema
+        .or(updateRequestIdentitySchema)
+        .safeParse(parsedMessage);
 
       if (identity.success && socket.readyState === WebSocket.OPEN) {
         const errorEvent: RequestErrorEvent = {
@@ -118,6 +129,7 @@ server.on('connection', (socket, request) => {
           id: randomUUID(),
           title: event.payload.title,
           completed: false,
+          version: 1,
         };
 
         roomJobs.push(createdJob);
@@ -137,15 +149,52 @@ server.on('connection', (socket, request) => {
         serverEvent = jobCreatedEvent;
         break;
       case 'job:update':
+        if (roomProcessedUpdates.has(event.requestId)) {
+          const ack: JobAckEvent = {
+            type: 'request:ack',
+            payload: { requestId: event.requestId },
+          };
+          socket.send(JSON.stringify(ack));
+
+          return;
+        }
+
         const updatedJob = roomJobs.find((job) => job.id === event.payload.id);
 
         if (!updatedJob) {
           console.error('Job not found');
+          const errorEvent: RequestErrorEvent = {
+            type: 'request:error',
+            payload: { requestId: event.requestId, message: 'Job not found' },
+          };
+          socket.send(JSON.stringify(errorEvent));
+
+          return;
+        }
+
+        if (updatedJob.version !== event.payload.expectedVersion) {
+          const conflictEvent: RequestErrorEvent = {
+            type: 'request:error',
+            payload: {
+              requestId: event.requestId,
+              message:
+                'This job changed in another tab. The latest version has been loaded. Please try again.',
+              currentJob: updatedJob,
+            },
+          };
+          socket.send(JSON.stringify(conflictEvent));
 
           return;
         }
 
         updatedJob.completed = event.payload.completed;
+        updatedJob.version += 1;
+        roomProcessedUpdates.add(event.requestId);
+        const updateAck: JobAckEvent = {
+          type: 'request:ack',
+          payload: { requestId: event.requestId },
+        };
+        socket.send(JSON.stringify(updateAck));
 
         const jobUpdatedEvent: JobUpdatedEvent = {
           type: 'job:updated',
