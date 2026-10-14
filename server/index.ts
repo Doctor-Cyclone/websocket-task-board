@@ -3,6 +3,7 @@ import {
   jobEventSchema,
   jobCreateEventSchema,
   jobUpdateEventSchema,
+  jobDeleteEventSchema,
   type ServerEvent,
 } from '@/shared/protocol/index.js';
 import { DEFAULT_ROOM } from '@/shared/rooms/index.js';
@@ -24,7 +25,8 @@ const editingStore = createEditingStore();
 const roomBySocket = new Map<WebSocket, string>();
 const requestIdentitySchema = jobCreateEventSchema
   .pick({ type: true, requestId: true })
-  .or(jobUpdateEventSchema.pick({ type: true, requestId: true }));
+  .or(jobUpdateEventSchema.pick({ type: true, requestId: true }))
+  .or(jobDeleteEventSchema.pick({ type: true, requestId: true }));
 
 startHeartbeat(server);
 const broadcastEditing = (room: string) =>
@@ -128,7 +130,7 @@ server.on('connection', (socket, request) => {
           serverEvent = updateJob(socket, roomState, event);
           break;
         case 'job:delete':
-          serverEvent = deleteJob(roomState, event);
+          serverEvent = deleteJob(socket, roomState, event);
           break;
       }
     } catch (error) {

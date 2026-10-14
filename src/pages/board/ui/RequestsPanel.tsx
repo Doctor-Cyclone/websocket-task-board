@@ -34,7 +34,11 @@ export function RequestsPanel({ requests, connected, onRetry }: Props) {
                 <div className={styles.content}>
                   <h3>{request.title.trim() || 'Untitled job'}</h3>
                   <p className={styles.requestAction}>
-                    {request.event.type === 'job:create' ? 'Create job' : 'Update job'}
+                    {request.event.type === 'job:create'
+                      ? 'Create job'
+                      : request.event.type === 'job:update'
+                        ? 'Update job'
+                        : 'Delete job'}
                   </p>
                   <span
                     className={`${styles.badge} ${confirmed ? styles.confirmed : failed ? styles.failed : timedOut ? styles.warning : styles.pending}`}

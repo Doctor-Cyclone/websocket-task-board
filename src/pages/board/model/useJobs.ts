@@ -137,7 +137,11 @@ export const useJobs = (room: Room, name = 'Guest') => {
   const send = (message: JobEvent) => {
     if (!connection.canSend()) return;
 
-    if (message.type === 'job:create' || message.type === 'job:update') {
+    if (
+      message.type === 'job:create' ||
+      message.type === 'job:update' ||
+      message.type === 'job:delete'
+    ) {
       const title =
         message.type === 'job:create'
           ? message.payload.title

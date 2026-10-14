@@ -1,6 +1,6 @@
-import type { JobCreateEvent, JobUpdateEvent } from '@/shared/protocol';
+import type { JobCreateEvent, JobUpdateEvent, JobDeleteEvent } from '@/shared/protocol';
 
-export type RequestEvent = JobCreateEvent | JobUpdateEvent;
+export type RequestEvent = JobCreateEvent | JobUpdateEvent | JobDeleteEvent;
 
 export const REQUEST_STATUS = {
   PENDING: 'pending',

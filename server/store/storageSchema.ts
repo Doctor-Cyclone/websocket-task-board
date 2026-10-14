@@ -9,6 +9,7 @@ export const storedBoardsSchema = z.object({
       jobs: z.array(jobSchema),
       processedCreateRequests: z.array(z.tuple([z.string(), jobSchema])),
       processedUpdateRequests: z.array(z.string()),
+      processedDeleteRequests: z.array(z.string()).default([]),
     }),
   ),
 });

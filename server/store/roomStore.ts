@@ -6,6 +6,7 @@ export type RoomState = {
   jobs: Job[];
   processedCreateRequests: Map<string, Job>;
   processedUpdateRequests: Set<string>;
+  processedDeleteRequests: Set<string>;
   save: () => void;
 };
 
@@ -22,6 +23,8 @@ export function createRoomStore(storagePath = DEFAULT_STORAGE_PATH) {
       saved?.processedCreateRequests.forEach(([id, job]) =>
         state.processedCreateRequests.set(id, job),
       );
+      state.processedDeleteRequests.clear();
+      saved?.processedDeleteRequests.forEach((id) => state.processedDeleteRequests.add(id));
       state.processedUpdateRequests.clear();
       saved?.processedUpdateRequests.forEach((id) => state.processedUpdateRequests.add(id));
     });
@@ -35,6 +38,7 @@ export function createRoomStore(storagePath = DEFAULT_STORAGE_PATH) {
         jobs: state.jobs,
         processedCreateRequests: [...state.processedCreateRequests],
         processedUpdateRequests: [...state.processedUpdateRequests],
+        processedDeleteRequests: [...state.processedDeleteRequests],
       })),
     };
 
@@ -56,6 +60,7 @@ export function createRoomStore(storagePath = DEFAULT_STORAGE_PATH) {
         jobs: [],
         processedCreateRequests: new Map(),
         processedUpdateRequests: new Set(),
+        processedDeleteRequests: new Set(),
         save,
       };
       rooms.set(room, roomState);

@@ -52,6 +52,7 @@ export const jobsSyncEventSchema = z.object({
 
 export const jobDeleteEventSchema = z.object({
   type: z.literal('job:delete'),
+  requestId: z.string().min(1),
   payload: z.object({ id: z.string() }),
 });
 

@@ -70,7 +70,9 @@ export default function BoardPage() {
               payload: { id: job.id, completed: !job.completed, expectedVersion: job.version },
             })
           }
-          onDelete={(id) => send({ type: 'job:delete', payload: { id } })}
+          onDelete={(id) =>
+            send({ type: 'job:delete', requestId: crypto.randomUUID(), payload: { id } })
+          }
           onRename={(job, title) =>
             send({
               type: 'job:update',

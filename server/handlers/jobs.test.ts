@@ -140,7 +140,11 @@ describe('room job handlers', () => {
   it('deletes a job and persists the deletion', () => {
     const job = createExample();
     expect(
-      deleteJob(store.getRoom('alpha'), { type: 'job:delete', payload: { id: job.id } }),
+      deleteJob(socket, store.getRoom('alpha'), {
+        type: 'job:delete',
+        requestId: 'delete-1',
+        payload: { id: job.id },
+      }),
     ).toEqual({ type: 'job:deleted', payload: { id: job.id } });
     expect(createRoomStore(storagePath).getRoom('alpha').jobs).toEqual([]);
   });
@@ -149,7 +153,11 @@ describe('room job handlers', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const job = createExample();
     expect(
-      deleteJob(store.getRoom('beta'), { type: 'job:delete', payload: { id: job.id } }),
+      deleteJob(socket, store.getRoom('beta'), {
+        type: 'job:delete',
+        requestId: 'delete-1',
+        payload: { id: job.id },
+      }),
     ).toBeUndefined();
     expect(store.getRoom('alpha').jobs).toHaveLength(1);
   });
@@ -174,7 +182,11 @@ describe('persistent room store', () => {
 
   it('does not recreate a deleted job when its create request is retried after restart', () => {
     const job = createExample();
-    deleteJob(store.getRoom('alpha'), { type: 'job:delete', payload: { id: job.id } });
+    deleteJob(socket, store.getRoom('alpha'), {
+      type: 'job:delete',
+      requestId: 'delete-1',
+      payload: { id: job.id },
+    });
     store = createRoomStore(storagePath);
     expect(createJob(socket, store.getRoom('alpha'), createEvent)).toBeUndefined();
     expect(store.getRoom('alpha').jobs).toEqual([]);
