@@ -16,6 +16,7 @@ export const useJobs = (room: Room, name = 'Guest') => {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [editors, setEditors] = useState<EditingParticipant[]>([]);
   const activeRoomRef = useRef(room);
+  const lastEditingAtRef = useRef(0);
   const jobsCacheRef = useRef<Map<Room, Job[]>>(new Map());
 
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -147,6 +148,14 @@ export const useJobs = (room: Room, name = 'Guest') => {
 
   const send = (message: JobEvent) => {
     if (!connection.canSend()) return;
+
+    if (message.type === 'job:editing') {
+      const now = Date.now();
+
+      if (message.payload.active && now - lastEditingAtRef.current < 1000) return;
+
+      lastEditingAtRef.current = message.payload.active ? now : 0;
+    }
 
     if (
       message.type === 'job:create' ||

@@ -7,7 +7,7 @@ import {
   jobDeleteEventSchema,
   type ServerEvent,
 } from '@/shared/protocol/index.js';
-import { DEFAULT_ROOM } from '@/shared/rooms/index.js';
+import { DEFAULT_ROOM, ROOM } from '@/shared/rooms/index.js';
 import { createRoomStore } from './store/roomStore.js';
 import { createJob } from './handlers/createJob.js';
 import { updateJob } from './handlers/updateJob.js';
@@ -24,8 +24,8 @@ export function createServer({
   port = 3001,
   storagePath,
 }: { port?: number; storagePath?: string } = {}) {
-  const server = new WebSocketServer({ port, host: '127.0.0.1', maxPayload: MAX_MESSAGE_BYTES });
   const roomStore = createRoomStore(storagePath);
+  const server = new WebSocketServer({ port, host: '127.0.0.1', maxPayload: MAX_MESSAGE_BYTES });
   const participantStore = createParticipantStore();
   const editingStore = createEditingStore();
   const roomBySocket = new Map<WebSocket, string>();
@@ -46,13 +46,23 @@ export function createServer({
   server.once('close', () => clearInterval(editingTimer));
 
   server.on('listening', () => {
-    console.log('WebSocket server listening at ws://localhost:3001');
+    const address = server.address();
+    console.log(
+      `WebSocket server listening at ws://127.0.0.1:${typeof address === 'object' && address ? address.port : port}`,
+    );
   });
 
   server.on('connection', (socket, request) => {
     const allowMessage = createRateLimiter();
     const url = new URL(request.url ?? '/', 'http://localhost:3001');
     const room = url.searchParams.get('room')?.trim() || DEFAULT_ROOM;
+
+    if (!Object.values(ROOM).some((allowedRoom) => allowedRoom === room)) {
+      socket.close(1008, 'Unknown room');
+
+      return;
+    }
+
     const roomState = roomStore.getRoom(room);
 
     roomBySocket.set(socket, room);
