@@ -75,6 +75,15 @@ export const requestErrorEventSchema = z.object({
 });
 
 export const participantSchema = z.object({ clientId: z.string(), name: z.string() });
+export const jobEditingEventSchema = z.object({
+  type: z.literal('job:editing'),
+  payload: z.object({ id: z.string(), active: z.boolean() }),
+});
+export const roomEditingEventSchema = z.object({
+  type: z.literal('room:editing'),
+  payload: z.array(z.object({ jobId: z.string(), clientId: z.string(), name: z.string() })),
+});
+export type EditingParticipant = z.infer<typeof roomEditingEventSchema>['payload'][number];
 export type Participant = z.infer<typeof participantSchema>;
 export const roomParticipantsEventSchema = z.object({
   type: z.literal('room:participants'),
@@ -83,6 +92,7 @@ export const roomParticipantsEventSchema = z.object({
 
 export const serverEventSchema = z.discriminatedUnion('type', [
   roomParticipantsEventSchema,
+  roomEditingEventSchema,
   jobCreatedEventSchema,
   jobsSyncEventSchema,
   jobUpdatedEventSchema,
@@ -92,6 +102,7 @@ export const serverEventSchema = z.discriminatedUnion('type', [
 ]);
 
 export const jobEventSchema = z.discriminatedUnion('type', [
+  jobEditingEventSchema,
   jobCreateEventSchema,
   jobUpdateEventSchema,
   jobDeleteEventSchema,

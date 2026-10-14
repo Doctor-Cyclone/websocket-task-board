@@ -15,16 +15,22 @@ import { sendEvent } from './transport/sendEvent.js';
 import { startHeartbeat } from './transport/heartbeat.js';
 import { createParticipantStore } from './store/participantStore.js';
 import { randomUUID } from 'node:crypto';
+import { createEditingStore } from './store/editingStore.js';
 
 const server = new WebSocketServer({ port: 3001 });
 const roomStore = createRoomStore();
 const participantStore = createParticipantStore();
+const editingStore = createEditingStore();
 const roomBySocket = new Map<WebSocket, string>();
 const requestIdentitySchema = jobCreateEventSchema
   .pick({ type: true, requestId: true })
   .or(jobUpdateEventSchema.pick({ type: true, requestId: true }));
 
 startHeartbeat(server);
+const broadcastEditing = (room: string) =>
+  broadcast(server, { type: 'room:editing', payload: editingStore.list(room) }, room, roomBySocket);
+const editingTimer = setInterval(() => editingStore.expire().forEach(broadcastEditing), 1000);
+server.once('close', () => clearInterval(editingTimer));
 
 server.on('listening', () => {
   console.log('WebSocket server listening at ws://localhost:3001');
@@ -36,10 +42,11 @@ server.on('connection', (socket, request) => {
   const roomState = roomStore.getRoom(room);
 
   roomBySocket.set(socket, room);
-  participantStore.join(socket, room, {
+  const participant = {
     clientId: url.searchParams.get('clientId')?.slice(0, 100) || randomUUID(),
     name: url.searchParams.get('name')?.trim().slice(0, 40) || 'Guest',
-  });
+  };
+  participantStore.join(socket, room, participant);
   broadcast(
     server,
     { type: 'room:participants', payload: participantStore.list(room) },
@@ -49,10 +56,13 @@ server.on('connection', (socket, request) => {
 
   console.log('Client connected to room:', room);
   sendEvent(socket, { type: 'jobs:sync', payload: roomState.jobs });
+  sendEvent(socket, { type: 'room:editing', payload: editingStore.list(room) });
 
   socket.on('close', () => {
     roomBySocket.delete(socket);
     participantStore.leave(socket);
+    editingStore.remove(socket);
+    broadcastEditing(room);
     broadcast(
       server,
       { type: 'room:participants', payload: participantStore.list(room) },
@@ -99,6 +109,18 @@ server.on('connection', (socket, request) => {
 
     try {
       switch (event.type) {
+        case 'job:editing':
+          if (roomState.jobs.some((job) => job.id === event.payload.id)) {
+            editingStore.set(
+              socket,
+              room,
+              { ...participant, jobId: event.payload.id },
+              event.payload.active,
+            );
+            broadcastEditing(room);
+          }
+
+          return;
         case 'job:create':
           serverEvent = createJob(socket, roomState, event);
           break;

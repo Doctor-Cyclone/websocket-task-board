@@ -1,5 +1,11 @@
 import { useWebSocket } from '@/src/shared/connection/useWebSocket';
-import { type Job, type JobEvent, type Participant, serverEventSchema } from '@/shared/protocol';
+import {
+  type Job,
+  type JobEvent,
+  type Participant,
+  type EditingParticipant,
+  serverEventSchema,
+} from '@/shared/protocol';
 import { useRef, useState } from 'react';
 import { useRequests } from './useRequests';
 import type { Room } from '@/shared/rooms';
@@ -7,6 +13,7 @@ import type { Room } from '@/shared/rooms';
 export const useJobs = (room: Room, name = 'Guest') => {
   const [clientId] = useState(() => crypto.randomUUID());
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [editors, setEditors] = useState<EditingParticipant[]>([]);
   const activeRoomRef = useRef(room);
   const jobsCacheRef = useRef<Map<Room, Job[]>>(new Map());
 
@@ -22,6 +29,7 @@ export const useJobs = (room: Room, name = 'Guest') => {
     if (activeRoomRef.current !== roomName) {
       requestTracker.reset();
       setParticipants([]);
+      setEditors([]);
       setJobs(jobsCacheRef.current.get(roomName) ?? []);
       activeRoomRef.current = roomName;
     }
@@ -60,6 +68,9 @@ export const useJobs = (room: Room, name = 'Guest') => {
     const serverJob = result.data;
 
     switch (serverJob.type) {
+      case 'room:editing':
+        setEditors(serverJob.payload.filter((editor) => editor.clientId !== clientId));
+        break;
       case 'room:participants':
         setParticipants(serverJob.payload);
         break;
@@ -118,6 +129,7 @@ export const useJobs = (room: Room, name = 'Guest') => {
 
   const disconnect = () => {
     setParticipants([]);
+    setEditors([]);
     requestTracker.cancelPending();
     connection.disconnect();
   };
@@ -152,6 +164,7 @@ export const useJobs = (room: Room, name = 'Guest') => {
     connectionStatus: connection.connectionStatus,
     jobs,
     participants,
+    editors,
     clientId,
     requests: requestTracker.requests,
     connect,

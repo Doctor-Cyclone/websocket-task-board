@@ -14,6 +14,7 @@ export {
   jobDeletedEventSchema,
 } from './events.js';
 export type {
+  EditingParticipant,
   Participant,
   RequestErrorEvent,
   JobCreateEvent,

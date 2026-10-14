@@ -1,4 +1,4 @@
-import type { Job } from '@/shared/protocol';
+import type { Job, EditingParticipant } from '@/shared/protocol';
 import { Icon } from './Icon';
 import styles from './JobsPanel.module.scss';
 import { useState } from 'react';
@@ -11,9 +11,20 @@ type Props = {
   onToggle: (job: Job) => void;
   onDelete: (id: string) => void;
   onRename: (job: Job, title: string) => void;
+  editors: EditingParticipant[];
+  onEditing: (id: string, active: boolean) => void;
 };
 
-export function JobsPanel({ jobs, connected, onCreate, onToggle, onDelete, onRename }: Props) {
+export function JobsPanel({
+  jobs,
+  connected,
+  onCreate,
+  onToggle,
+  onDelete,
+  onRename,
+  editors,
+  onEditing,
+}: Props) {
   const [jobTitle, setJobTitle] = useState('');
 
   return (
@@ -81,6 +92,10 @@ export function JobsPanel({ jobs, connected, onCreate, onToggle, onDelete, onRen
                 onToggle={onToggle}
                 onDelete={onDelete}
                 onRename={onRename}
+                editorNames={editors
+                  .filter((editor) => editor.jobId === job.id)
+                  .map((editor) => editor.name)}
+                onEditing={onEditing}
               />
             ))}
           </ul>

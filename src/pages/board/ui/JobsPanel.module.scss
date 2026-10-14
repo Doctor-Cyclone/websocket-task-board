@@ -258,3 +258,8 @@
     padding: 3px 8px;
   }
 }
+.editors {
+  grid-column: 1 / -1;
+  color: var(--amber);
+  font-size: 12px;
+}

@@ -14,6 +14,7 @@ export default function BoardPage() {
     connectionStatus,
     jobs,
     participants,
+    editors,
     clientId,
     requests,
     connect,
@@ -52,6 +53,8 @@ export default function BoardPage() {
       <main className={styles.content}>
         <JobsPanel
           jobs={jobs}
+          editors={connected ? editors : []}
+          onEditing={(id, active) => send({ type: 'job:editing', payload: { id, active } })}
           connected={connected}
           onCreate={(title) =>
             send({
