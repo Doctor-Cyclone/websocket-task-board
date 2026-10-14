@@ -43,6 +43,7 @@ export function updateJob(
   job.completed = event.payload.completed;
   job.version += 1;
   roomState.processedUpdateRequests.add(event.requestId);
+  roomState.save();
   sendEvent(socket, { type: 'request:ack', payload: { requestId: event.requestId } });
 
   return { type: 'job:updated', payload: job };

@@ -77,16 +77,32 @@ server.on('connection', (socket, request) => {
     const event = result.data;
     let serverEvent: ServerEvent | undefined;
 
-    switch (event.type) {
-      case 'job:create':
-        serverEvent = createJob(socket, roomState, event);
-        break;
-      case 'job:update':
-        serverEvent = updateJob(socket, roomState, event);
-        break;
-      case 'job:delete':
-        serverEvent = deleteJob(roomState, event);
-        break;
+    try {
+      switch (event.type) {
+        case 'job:create':
+          serverEvent = createJob(socket, roomState, event);
+          break;
+        case 'job:update':
+          serverEvent = updateJob(socket, roomState, event);
+          break;
+        case 'job:delete':
+          serverEvent = deleteJob(roomState, event);
+          break;
+      }
+    } catch (error) {
+      console.error('Failed to save boards:', error);
+
+      if ('requestId' in event) {
+        sendEvent(socket, {
+          type: 'request:error',
+          payload: {
+            requestId: event.requestId,
+            message: 'The change could not be saved. Please try again.',
+          },
+        });
+      }
+
+      return;
     }
 
     if (serverEvent) broadcast(server, serverEvent, room, roomBySocket);

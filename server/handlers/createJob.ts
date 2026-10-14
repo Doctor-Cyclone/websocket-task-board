@@ -18,6 +18,7 @@ export function createJob(
   const job: Job = { id: randomUUID(), title: event.payload.title, completed: false, version: 1 };
   roomState.jobs.push(job);
   roomState.processedCreateRequests.set(event.requestId, job);
+  roomState.save();
   sendEvent(socket, { type: 'request:ack', payload: { requestId: event.requestId } });
 
   return { type: 'job:created', payload: job };

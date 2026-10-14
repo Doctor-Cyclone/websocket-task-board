@@ -14,6 +14,7 @@ export function deleteJob(
   }
 
   roomState.jobs.splice(jobIndex, 1);
+  roomState.save();
 
   return { type: 'job:deleted', payload: { id: event.payload.id } };
 }
