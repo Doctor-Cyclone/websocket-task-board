@@ -17,6 +17,7 @@ import { startHeartbeat } from './transport/heartbeat.js';
 import { createParticipantStore } from './store/participantStore.js';
 import { randomUUID } from 'node:crypto';
 import { createEditingStore } from './store/editingStore.js';
+import { createRateLimiter } from './transport/rateLimiter.js';
 
 const server = new WebSocketServer({ port: 3001 });
 const roomStore = createRoomStore();
@@ -39,6 +40,7 @@ server.on('listening', () => {
 });
 
 server.on('connection', (socket, request) => {
+  const allowMessage = createRateLimiter();
   const url = new URL(request.url ?? '/', 'http://localhost:3001');
   const room = url.searchParams.get('room')?.trim() || DEFAULT_ROOM;
   const roomState = roomStore.getRoom(room);
@@ -77,6 +79,12 @@ server.on('connection', (socket, request) => {
     console.error('Connection error:', error.message);
   });
   socket.on('message', (message) => {
+    if (!allowMessage()) {
+      socket.close(1008, 'Message rate limit exceeded');
+
+      return;
+    }
+
     let parsedMessage: unknown;
 
     try {
