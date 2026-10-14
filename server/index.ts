@@ -1,3 +1,4 @@
+import { MAX_MESSAGE_BYTES } from '@/shared/limits/index.js';
 import { WebSocketServer, type WebSocket } from 'ws';
 import {
   jobEventSchema,
@@ -19,7 +20,7 @@ import { randomUUID } from 'node:crypto';
 import { createEditingStore } from './store/editingStore.js';
 import { createRateLimiter } from './transport/rateLimiter.js';
 
-const server = new WebSocketServer({ port: 3001 });
+const server = new WebSocketServer({ port: 3001, maxPayload: MAX_MESSAGE_BYTES });
 const roomStore = createRoomStore();
 const participantStore = createParticipantStore();
 const editingStore = createEditingStore();
