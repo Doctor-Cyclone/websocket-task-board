@@ -68,6 +68,7 @@ server.on('connection', (socket, request) => {
       parsedMessage = JSON.parse(message.toString());
     } catch {
       console.error('Invalid JSON: message must contain valid JSON');
+
       return;
     }
 
@@ -75,6 +76,7 @@ server.on('connection', (socket, request) => {
 
     if (!result.success) {
       console.error('Invalid event:', result.error.issues);
+
       return;
     }
 
@@ -90,6 +92,7 @@ server.on('connection', (socket, request) => {
           };
 
           socket.send(JSON.stringify(jobAckEvent));
+
           return;
         }
 
@@ -120,6 +123,7 @@ server.on('connection', (socket, request) => {
 
         if (!updatedJob) {
           console.error('Job not found');
+
           return;
         }
 
@@ -137,6 +141,7 @@ server.on('connection', (socket, request) => {
 
         if (jobIndex === -1) {
           console.error('Job not found');
+
           return;
         }
 

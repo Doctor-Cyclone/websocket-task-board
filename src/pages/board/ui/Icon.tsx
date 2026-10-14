@@ -23,6 +23,7 @@ export function Icon({ name, ...props }: IconProps) {
       </>
     ),
   };
+
   return (
     <svg
       width="20"

@@ -24,6 +24,7 @@ export function RequestsPanel({ requests, connected, onRetry }: Props) {
           {requests.map((request) => {
             const confirmed = request.status === REQUEST_STATUS.CONFIRMED;
             const timedOut = request.status === REQUEST_STATUS.TIMED_OUT;
+
             return (
               <li key={request.event.requestId} className={styles.card}>
                 <span className={styles.file}>
