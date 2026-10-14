@@ -36,7 +36,10 @@ export function BoardHeader({
     <header className={styles.header}>
       <div className={styles.brand}>
         <h1>Job Board</h1>
-        <span>Your work, in sync.</span>
+        <span role="status" className={`${styles.status} ${connected ? styles.connected : ''}`}>
+          <span className={styles.dot} aria-hidden="true" />
+          {status}
+        </span>
       </div>
       <div className={styles.controls}>
         <label className={styles.name}>
@@ -76,10 +79,6 @@ export function BoardHeader({
             ))}
           </div>
         </fieldset>
-        <span role="status" className={`${styles.status} ${connected ? styles.connected : ''}`}>
-          <span className={styles.dot} />
-          {status}
-        </span>
         <button
           className={styles.button}
           disabled={closing || (!active && !room.trim())}

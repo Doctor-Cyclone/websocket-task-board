@@ -40,7 +40,9 @@ export default function BoardPage() {
       />
       <div className={styles.participants}>
         <span>
-          {connected ? participants.length : 0} online in {room}
+          {connected
+            ? `${participants.length} online in ${room}`
+            : `Connect to see participants in ${room}`}
         </span>
         {connected &&
           participants.map((participant) => (

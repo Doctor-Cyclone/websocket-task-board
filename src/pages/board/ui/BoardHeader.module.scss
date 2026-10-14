@@ -10,25 +10,22 @@
 }
 .brand {
   display: flex;
-  align-items: center;
-  gap: 24px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
   h1 {
     font-size: 24px;
     font-weight: 650;
     letter-spacing: -0.7px;
   }
-  > span {
-    border-left: 1px solid #ffffff3a;
-    padding-left: 24px;
-    color: var(--text-muted);
-    font-size: 16px;
-  }
 }
 .controls {
+  --control-height: 44px;
+
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
-  align-items: center;
+  align-items: flex-end;
 }
 .room {
   margin: 0;
@@ -37,8 +34,9 @@
   min-width: 0;
   legend {
     padding: 0;
-    margin-bottom: 5px;
+    margin-bottom: 8px;
     font-size: 11px;
+    line-height: 14px;
     color: var(--text-muted);
   }
   &:disabled {
@@ -46,6 +44,8 @@
   }
 }
 .roomOptions {
+  height: var(--control-height);
+  width: 160px;
   position: relative;
   display: grid;
   padding: 3px;
@@ -85,8 +85,11 @@
     }
   }
   span {
-    display: block;
-    padding: 7px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 0 12px;
     border: 1px solid transparent;
     border-radius: 9px;
     font-size: 13px;
@@ -99,13 +102,13 @@
   display: inline-flex;
   gap: 9px;
   align-items: center;
-  padding: 10px 15px;
-  border: 1px solid #ffffff25;
-  border-radius: 14px;
   font-size: 13px;
-  background: #ffffff04;
+  line-height: 20px;
+  white-space: nowrap;
+  color: var(--text-muted);
 }
 .dot {
+  flex-shrink: 0;
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -114,11 +117,18 @@
 .connected .dot {
   background: var(--green);
 }
+.connected {
+  color: var(--green);
+}
 .button {
+  height: var(--control-height);
+  min-width: 128px;
+  font-size: 13px;
+  line-height: 20px;
   color: #ffe1af;
   border: 1px solid #c99651;
   border-radius: 12px;
-  padding: 11px 24px;
+  padding: 0 20px;
   background: linear-gradient(135deg, #ffffff06, #ffffff02);
   &:hover:not(:disabled) {
     background: #f4bc5912;
@@ -130,13 +140,8 @@
     gap: 18px;
   }
   .brand {
-    gap: 12px;
     h1 {
       font-size: 21px;
-    }
-    > span {
-      font-size: 13px;
-      padding-left: 12px;
     }
   }
   .controls {
@@ -147,12 +152,16 @@
 }
 .name {
   display: grid;
-  gap: 5px;
+  gap: 8px;
   font-size: 11px;
+  line-height: 14px;
   color: var(--text-muted);
   input {
-    width: 125px;
-    padding: 9px 12px;
+    width: 140px;
+    height: var(--control-height);
+    padding: 0 12px;
+    font-size: 13px;
+    line-height: 20px;
     border: 1px solid #ffffff25;
     border-radius: 12px;
     background: #ffffff04;

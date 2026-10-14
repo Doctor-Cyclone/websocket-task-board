@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { BoardHeader } from './BoardHeader';
 import { JobRow } from './JobRow';
+import { JobsPanel } from './JobsPanel';
 import { RequestsPanel } from './RequestsPanel';
 import { ROOM } from '@/shared/rooms';
 import { CONNECTION_STATUS } from '@/src/shared/connection';
@@ -11,6 +12,37 @@ import { REQUEST_STATUS } from '../model/requests';
 const job = { id: 'job-1', title: 'Example', completed: false, version: 1 };
 
 describe('board interface', () => {
+  it('requires a nonblank title and a connection before creating a job', () => {
+    const onCreate = vi.fn();
+    const props = {
+      jobs: [],
+      editors: [],
+      onCreate,
+      onToggle: vi.fn(),
+      onDelete: vi.fn(),
+      onRename: vi.fn(),
+      onEditing: vi.fn(),
+    };
+    const { rerender } = render(<JobsPanel {...props} connected />);
+    const button = screen.getByRole('button', { name: 'Create job' }) as HTMLButtonElement;
+    const input = screen.getByLabelText('Job title');
+    const form = input.closest('form')!;
+    expect(button.disabled).toBe(true);
+    fireEvent.change(input, { target: { value: '   ' } });
+    expect(button.disabled).toBe(true);
+    fireEvent.submit(form);
+    expect(onCreate).not.toHaveBeenCalled();
+    fireEvent.change(input, { target: { value: 'New job' } });
+    expect(button.disabled).toBe(false);
+    fireEvent.submit(form);
+    expect(onCreate).toHaveBeenCalledWith('New job');
+    onCreate.mockClear();
+    rerender(<JobsPanel {...props} connected={false} />);
+    expect(button.disabled).toBe(true);
+    fireEvent.submit(form);
+    expect(onCreate).not.toHaveBeenCalled();
+  });
+
   it('allows room selection while disconnected and locks it while connected', () => {
     const onRoomChange = vi.fn();
     const props = {

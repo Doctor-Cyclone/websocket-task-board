@@ -26,6 +26,7 @@ export function JobsPanel({
   onEditing,
 }: Props) {
   const [jobTitle, setJobTitle] = useState('');
+  const canCreate = connected && jobTitle.trim().length > 0;
 
   return (
     <section className={styles.panel} aria-labelledby="jobs-heading">
@@ -38,7 +39,7 @@ export function JobsPanel({
           className={styles.create}
           type="submit"
           form="create-job-form"
-          disabled={!connected}
+          disabled={!canCreate}
         >
           <Icon name="plus" />
           Create job
@@ -50,7 +51,7 @@ export function JobsPanel({
         onSubmit={(event) => {
           event.preventDefault();
 
-          if (connected) onCreate(jobTitle);
+          if (canCreate) onCreate(jobTitle);
         }}
       >
         <label htmlFor="job-title">Job title</label>
