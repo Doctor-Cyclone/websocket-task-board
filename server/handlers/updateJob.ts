@@ -40,7 +40,10 @@ export function updateJob(
     return;
   }
 
-  job.completed = event.payload.completed;
+  if (event.payload.completed !== undefined) job.completed = event.payload.completed;
+
+  if (event.payload.title !== undefined) job.title = event.payload.title;
+
   job.version += 1;
   roomState.processedUpdateRequests.add(event.requestId);
   roomState.save();

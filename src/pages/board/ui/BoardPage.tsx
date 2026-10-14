@@ -68,6 +68,13 @@ export default function BoardPage() {
             })
           }
           onDelete={(id) => send({ type: 'job:delete', payload: { id } })}
+          onRename={(job, title) =>
+            send({
+              type: 'job:update',
+              requestId: crypto.randomUUID(),
+              payload: { id: job.id, title, expectedVersion: job.version },
+            })
+          }
         />
         <RequestsPanel requests={requests} connected={connected} onRetry={retry} />
       </main>

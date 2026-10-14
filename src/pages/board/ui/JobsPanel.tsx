@@ -2,6 +2,7 @@ import type { Job } from '@/shared/protocol';
 import { Icon } from './Icon';
 import styles from './JobsPanel.module.scss';
 import { useState } from 'react';
+import { JobRow } from './JobRow';
 
 type Props = {
   jobs: Job[];
@@ -9,9 +10,10 @@ type Props = {
   onCreate: (title: string) => void;
   onToggle: (job: Job) => void;
   onDelete: (id: string) => void;
+  onRename: (job: Job, title: string) => void;
 };
 
-export function JobsPanel({ jobs, connected, onCreate, onToggle, onDelete }: Props) {
+export function JobsPanel({ jobs, connected, onCreate, onToggle, onDelete, onRename }: Props) {
   const [jobTitle, setJobTitle] = useState('');
 
   return (
@@ -72,32 +74,14 @@ export function JobsPanel({ jobs, connected, onCreate, onToggle, onDelete }: Pro
           </div>
           <ul className={styles.list}>
             {jobs.map((job) => (
-              <li className={styles.row} key={job.id}>
-                <label className={styles.job}>
-                  <input
-                    type="checkbox"
-                    checked={job.completed}
-                    disabled={!connected}
-                    onChange={() => onToggle(job)}
-                  />
-                  <span className={job.completed ? styles.completedTitle : ''}>{job.title}</span>
-                </label>
-                <span
-                  className={`${styles.badge} ${job.completed ? styles.completed : styles.progress}`}
-                >
-                  <Icon name={job.completed ? 'check' : 'clock'} />
-                  {job.completed ? 'Completed' : 'In progress'}
-                </span>
-                <button
-                  className={styles.delete}
-                  disabled={!connected}
-                  onClick={() => onDelete(job.id)}
-                  aria-label={`Delete ${job.title}`}
-                  title="Delete job"
-                >
-                  <Icon name="trash" />
-                </button>
-              </li>
+              <JobRow
+                key={job.id}
+                job={job}
+                connected={connected}
+                onToggle={onToggle}
+                onDelete={onDelete}
+                onRename={onRename}
+              />
             ))}
           </ul>
         </>

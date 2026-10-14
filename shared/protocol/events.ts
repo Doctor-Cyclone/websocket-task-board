@@ -27,11 +27,17 @@ export const jobCreatedEventSchema = z.object({
 export const jobUpdateEventSchema = z.object({
   type: z.literal('job:update'),
   requestId: z.string().min(1),
-  payload: z.object({
-    id: z.string(),
-    completed: z.boolean(),
-    expectedVersion: z.number().int().positive(),
-  }),
+  payload: z
+    .object({
+      id: z.string(),
+      completed: z.boolean().optional(),
+      title: jobCreateEventSchema.shape.payload.shape.title.optional(),
+      expectedVersion: z.number().int().positive(),
+    })
+    .refine(
+      (payload) => payload.completed !== undefined || payload.title !== undefined,
+      'An update must contain title or completed',
+    ),
 });
 
 export const jobUpdatedEventSchema = z.object({
