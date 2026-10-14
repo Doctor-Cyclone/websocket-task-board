@@ -14,8 +14,10 @@ import type { JobCreatedEvent } from '@/shared/protocol/index.js';
 import { broadcast } from './transport/broadcast.js';
 import type { JobAckEvent } from '@/shared/protocol/events.js';
 import { DEFAULT_ROOM } from '@/shared/rooms/index.js';
+import { startHeartbeat } from './transport/heartbeat.js';
 
 const server = new WebSocketServer({ port: 3001 });
+startHeartbeat(server);
 const jobsByRoom: Map<string, Job[]> = new Map();
 const roomBySocket: Map<WebSocket, string> = new Map();
 const processedCreateRequestsByRoom = new Map<string, Map<string, Job>>();
