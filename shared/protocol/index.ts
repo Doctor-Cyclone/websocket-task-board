@@ -1,4 +1,6 @@
 export {
+  participantSchema,
+  roomParticipantsEventSchema,
   requestErrorEventSchema,
   jobCreateEventSchema,
   jobCreatedEventSchema,
@@ -12,6 +14,7 @@ export {
   jobDeletedEventSchema,
 } from './events.js';
 export type {
+  Participant,
   RequestErrorEvent,
   JobCreateEvent,
   JobCreatedEvent,

@@ -13,9 +13,12 @@ import { deleteJob } from './handlers/deleteJob.js';
 import { broadcast } from './transport/broadcast.js';
 import { sendEvent } from './transport/sendEvent.js';
 import { startHeartbeat } from './transport/heartbeat.js';
+import { createParticipantStore } from './store/participantStore.js';
+import { randomUUID } from 'node:crypto';
 
 const server = new WebSocketServer({ port: 3001 });
 const roomStore = createRoomStore();
+const participantStore = createParticipantStore();
 const roomBySocket = new Map<WebSocket, string>();
 const requestIdentitySchema = jobCreateEventSchema
   .pick({ type: true, requestId: true })
@@ -33,12 +36,29 @@ server.on('connection', (socket, request) => {
   const roomState = roomStore.getRoom(room);
 
   roomBySocket.set(socket, room);
+  participantStore.join(socket, room, {
+    clientId: url.searchParams.get('clientId')?.slice(0, 100) || randomUUID(),
+    name: url.searchParams.get('name')?.trim().slice(0, 40) || 'Guest',
+  });
+  broadcast(
+    server,
+    { type: 'room:participants', payload: participantStore.list(room) },
+    room,
+    roomBySocket,
+  );
 
   console.log('Client connected to room:', room);
   sendEvent(socket, { type: 'jobs:sync', payload: roomState.jobs });
 
   socket.on('close', () => {
     roomBySocket.delete(socket);
+    participantStore.leave(socket);
+    broadcast(
+      server,
+      { type: 'room:participants', payload: participantStore.list(room) },
+      room,
+      roomBySocket,
+    );
     console.log('Client disconnected');
   });
   socket.on('error', (error) => {

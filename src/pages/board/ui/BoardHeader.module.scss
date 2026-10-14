@@ -145,3 +145,17 @@
     gap: 8px;
   }
 }
+.name {
+  display: grid;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-muted);
+  input {
+    width: 125px;
+    padding: 9px 12px;
+    border: 1px solid #ffffff25;
+    border-radius: 12px;
+    background: #ffffff04;
+    color: #f2f1ed;
+  }
+}

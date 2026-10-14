@@ -1,10 +1,12 @@
 import { useWebSocket } from '@/src/shared/connection/useWebSocket';
-import { type Job, type JobEvent, serverEventSchema } from '@/shared/protocol';
+import { type Job, type JobEvent, type Participant, serverEventSchema } from '@/shared/protocol';
 import { useRef, useState } from 'react';
 import { useRequests } from './useRequests';
 import type { Room } from '@/shared/rooms';
 
-export const useJobs = (room: Room) => {
+export const useJobs = (room: Room, name = 'Guest') => {
+  const [clientId] = useState(() => crypto.randomUUID());
+  const [participants, setParticipants] = useState<Participant[]>([]);
   const activeRoomRef = useRef(room);
   const jobsCacheRef = useRef<Map<Room, Job[]>>(new Map());
 
@@ -19,6 +21,7 @@ export const useJobs = (room: Room) => {
 
     if (activeRoomRef.current !== roomName) {
       requestTracker.reset();
+      setParticipants([]);
       setJobs(jobsCacheRef.current.get(roomName) ?? []);
       activeRoomRef.current = roomName;
     }
@@ -57,6 +60,9 @@ export const useJobs = (room: Room) => {
     const serverJob = result.data;
 
     switch (serverJob.type) {
+      case 'room:participants':
+        setParticipants(serverJob.payload);
+        break;
       case 'request:error':
         requestTracker.fail(serverJob.payload.requestId, serverJob.payload.message);
         const currentJob = serverJob.payload.currentJob;
@@ -101,6 +107,8 @@ export const useJobs = (room: Room) => {
 
   const url = new URL('ws://localhost:3001');
   url.searchParams.set('room', room);
+  url.searchParams.set('name', name.trim() || 'Guest');
+  url.searchParams.set('clientId', clientId);
 
   const connection = useWebSocket(url.toString(), handleMessage);
 
@@ -109,6 +117,7 @@ export const useJobs = (room: Room) => {
   };
 
   const disconnect = () => {
+    setParticipants([]);
     requestTracker.cancelPending();
     connection.disconnect();
   };
@@ -142,6 +151,8 @@ export const useJobs = (room: Room) => {
   return {
     connectionStatus: connection.connectionStatus,
     jobs,
+    participants,
+    clientId,
     requests: requestTracker.requests,
     connect,
     disconnect,

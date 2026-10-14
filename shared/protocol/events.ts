@@ -68,7 +68,15 @@ export const requestErrorEventSchema = z.object({
   }),
 });
 
+export const participantSchema = z.object({ clientId: z.string(), name: z.string() });
+export type Participant = z.infer<typeof participantSchema>;
+export const roomParticipantsEventSchema = z.object({
+  type: z.literal('room:participants'),
+  payload: z.array(participantSchema),
+});
+
 export const serverEventSchema = z.discriminatedUnion('type', [
+  roomParticipantsEventSchema,
   jobCreatedEventSchema,
   jobsSyncEventSchema,
   jobUpdatedEventSchema,

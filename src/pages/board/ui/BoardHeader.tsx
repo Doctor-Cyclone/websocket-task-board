@@ -5,12 +5,22 @@ import { ROOM, ROOM_LABEL, type Room } from '@/shared/rooms';
 type Props = {
   status: ConnectionStatus;
   room: Room;
+  name: string;
+  onNameChange: (name: string) => void;
   onRoomChange: (room: Room) => void;
   onConnect: () => void;
   onDisconnect: () => void;
 };
 
-export function BoardHeader({ status, room, onRoomChange, onConnect, onDisconnect }: Props) {
+export function BoardHeader({
+  status,
+  room,
+  name,
+  onNameChange,
+  onRoomChange,
+  onConnect,
+  onDisconnect,
+}: Props) {
   const connected = status === CONNECTION_STATUS.CONNECTED;
   const active =
     connected ||
@@ -28,6 +38,15 @@ export function BoardHeader({ status, room, onRoomChange, onConnect, onDisconnec
         <span>Your work, in sync.</span>
       </div>
       <div className={styles.controls}>
+        <label className={styles.name}>
+          Name
+          <input
+            value={name}
+            maxLength={40}
+            disabled={active || closing}
+            onChange={(event) => onNameChange(event.target.value)}
+          />
+        </label>
         <fieldset className={styles.room} disabled={active || closing}>
           <legend>Room</legend>
           <div

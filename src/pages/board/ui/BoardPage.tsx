@@ -9,8 +9,19 @@ import { DEFAULT_ROOM, type Room } from '@/shared/rooms';
 
 export default function BoardPage() {
   const [room, setRoom] = useState<Room>(DEFAULT_ROOM);
-  const { connectionStatus, jobs, requests, connect, send, disconnect, retry, changeRoom } =
-    useJobs(room);
+  const [name, setName] = useState('Guest');
+  const {
+    connectionStatus,
+    jobs,
+    participants,
+    clientId,
+    requests,
+    connect,
+    send,
+    disconnect,
+    retry,
+    changeRoom,
+  } = useJobs(room, name);
   const connected = connectionStatus === CONNECTION_STATUS.CONNECTED;
 
   return (
@@ -18,12 +29,26 @@ export default function BoardPage() {
       <BoardHeader
         status={connectionStatus}
         room={room}
+        name={name}
+        onNameChange={setName}
         onRoomChange={(nextRoom) => {
           if (changeRoom(nextRoom)) setRoom(nextRoom);
         }}
         onConnect={connect}
         onDisconnect={disconnect}
       />
+      <div className={styles.participants}>
+        <span>
+          {connected ? participants.length : 0} online in {room}
+        </span>
+        {connected &&
+          participants.map((participant) => (
+            <span key={participant.clientId}>
+              {participant.name}
+              {participant.clientId === clientId ? ' (you)' : ''}
+            </span>
+          ))}
+      </div>
       <main className={styles.content}>
         <JobsPanel
           jobs={jobs}
