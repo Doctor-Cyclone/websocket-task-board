@@ -1,106 +1,105 @@
+import type { JobDetails } from './JobModal';
+import { useState } from 'react';
+import { JobDialog } from './JobDialog';
 import type { Job, EditingParticipant } from '@/shared/protocol';
 import { Icon } from './Icon';
 import styles from './JobsPanel.module.scss';
-import { useState } from 'react';
 import { JobRow } from './JobRow';
+import { CreateJobForm } from './CreateJobForm';
+import {
+  JOB_STATUS,
+  JOB_STATUS_LABEL,
+  getJobStatus,
+  type JobStatus,
+  type ActiveJobStatus,
+} from '../model/jobStatus';
 
 type Props = {
   jobs: Job[];
   connected: boolean;
-  onCreate: (title: string) => void;
-  onToggle: (job: Job) => void;
+  onCreate: (details: JobDetails) => void;
+  onMove: (job: Job, status: ActiveJobStatus) => void;
   onDelete: (id: string) => void;
-  onRename: (job: Job, title: string) => void;
+  onUpdateDetails: (job: Job, details: JobDetails) => void;
   editors: EditingParticipant[];
   onEditing: (id: string, active: boolean) => void;
 };
+
+const icons = {
+  backlog: 'plus',
+  'in-progress': 'clock',
+  done: 'check',
+  deleted: 'cross',
+} as const;
 
 export function JobsPanel({
   jobs,
   connected,
   onCreate,
-  onToggle,
+  onMove,
   onDelete,
-  onRename,
+  onUpdateDetails,
   editors,
   onEditing,
 }: Props) {
-  const [jobTitle, setJobTitle] = useState('');
-  const canCreate = connected && jobTitle.trim().length > 0;
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const selectedJob = jobs.find((job) => job.id === selectedJobId);
 
   return (
-    <section className={styles.panel} aria-labelledby="jobs-heading">
-      <div className={styles.heading}>
-        <div>
-          <h2 id="jobs-heading">Jobs</h2>
-          <p>Create and manage your jobs.</p>
-        </div>
-        <button
-          className={styles.create}
-          type="submit"
-          form="create-job-form"
-          disabled={!canCreate}
-        >
-          <Icon name="plus" />
-          Create job
-        </button>
-      </div>
-      <form
-        id="create-job-form"
-        className={styles.createForm}
-        onSubmit={(event) => {
-          event.preventDefault();
+    <section className={styles.board} aria-label="Job board">
+      {Object.values(JOB_STATUS).map((status: JobStatus) => {
+        const columnJobs = jobs.filter((job) => getJobStatus(job) === status);
 
-          if (canCreate) onCreate(jobTitle);
-        }}
-      >
-        <label htmlFor="job-title">Job title</label>
-        <input
-          id="job-title"
-          value={jobTitle}
-          disabled={!connected}
-          onChange={(event) => setJobTitle(event.target.value)}
-          placeholder="What needs to get done?"
-          aria-describedby="job-title-hint"
+        return (
+          <section
+            key={status}
+            className={`${styles.column} ${styles[status]}`}
+            aria-label={JOB_STATUS_LABEL[status]}
+          >
+            <h2 className={styles.heading}>
+              <Icon name={icons[status]} />
+              {JOB_STATUS_LABEL[status]}
+            </h2>
+            {status === JOB_STATUS.BACKLOG && (
+              <CreateJobForm connected={connected} onCreate={onCreate} />
+            )}
+            <ul className={styles.list}>
+              {columnJobs.map((job) => (
+                <JobRow
+                  key={job.id}
+                  job={job}
+                  number={job.number ?? jobs.indexOf(job) + 1}
+                  onOpen={() => setSelectedJobId(job.id)}
+                  connected={connected}
+                  onDelete={onDelete}
+                  editorNames={editors
+                    .filter((editor) => editor.jobId === job.id)
+                    .map((editor) => editor.name)}
+                />
+              ))}
+            </ul>
+            {columnJobs.length === 0 && (
+              <p className={styles.empty}>
+                {status === JOB_STATUS.BACKLOG && !connected
+                  ? 'Connect to load your jobs.'
+                  : 'No jobs here yet.'}
+              </p>
+            )}
+          </section>
+        );
+      })}
+      {selectedJob && (
+        <JobDialog
+          key={selectedJob.id}
+          job={selectedJob}
+          number={selectedJob.number ?? jobs.indexOf(selectedJob) + 1}
+          connected={connected}
+          onDismiss={() => setSelectedJobId(null)}
+          onMove={onMove}
+          onDelete={onDelete}
+          onUpdateDetails={onUpdateDetails}
+          onEditing={onEditing}
         />
-        <p id="job-title-hint">Use a title between 1 and 200 characters.</p>
-      </form>
-      {jobs.length === 0 ? (
-        <div className={styles.empty}>
-          <span className={styles.emptyIcon}>
-            <Icon name="check" />
-          </span>
-          <h3>A little space for your next idea.</h3>
-          <p>
-            {connected
-              ? 'Create your first job to get things moving.'
-              : 'Connect to load your jobs and start working.'}
-          </p>
-        </div>
-      ) : (
-        <>
-          <div className={styles.columns} aria-hidden="true">
-            <span>Job</span>
-            <span>Status</span>
-            <span>Actions</span>
-          </div>
-          <ul className={styles.list}>
-            {jobs.map((job) => (
-              <JobRow
-                key={job.id}
-                job={job}
-                connected={connected}
-                onToggle={onToggle}
-                onDelete={onDelete}
-                onRename={onRename}
-                editorNames={editors
-                  .filter((editor) => editor.jobId === job.id)
-                  .map((editor) => editor.name)}
-                onEditing={onEditing}
-              />
-            ))}
-          </ul>
-        </>
       )}
     </section>
   );

@@ -26,10 +26,16 @@ export function deleteJob(
     return;
   }
 
-  roomState.jobs.splice(jobIndex, 1);
+  const job = roomState.jobs[jobIndex]!;
+
+  if (job.status !== 'deleted') {
+    job.status = 'deleted';
+    job.version += 1;
+  }
+
   roomState.processedDeleteRequests.add(event.requestId);
   roomState.save();
   sendEvent(socket, { type: 'request:ack', payload: { requestId: event.requestId } });
 
-  return { type: 'job:deleted', payload: { id: event.payload.id } };
+  return { type: 'job:deleted', payload: { id: event.payload.id, job } };
 }

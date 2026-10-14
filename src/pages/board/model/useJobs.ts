@@ -119,7 +119,11 @@ export const useJobs = (room: Room, name = 'Guest') => {
         break;
       case 'job:deleted':
         updateRoomJobs((previousJobs) =>
-          previousJobs.filter((job) => job.id !== serverJob.payload.id),
+          previousJobs.map((job) =>
+            job.id === serverJob.payload.id
+              ? (serverJob.payload.job ?? { ...job, status: 'deleted' })
+              : job,
+          ),
         );
 
         break;

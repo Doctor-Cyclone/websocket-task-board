@@ -6,13 +6,14 @@ A collaborative job board built with React, TypeScript, SCSS Modules and a Node.
 
 - Separate Alpha and Beta boards with a smooth room selector.
 - Named online participants and temporary editing indicators.
-- Create, rename, complete and delete jobs; changes arrive through server events.
+- Four kanban columns: Backlog, In progress, Done and Deleted, with stable job numbers.
+- Open a card to view its full description, edit details or change its status in a dialog. Deleted jobs are retained; changes arrive through server events.
 - Optimistic version checks for updates, with current job data returned on conflicts.
 - ACK tracking, a five-second confirmation timeout and manual Retry for all job operations.
 - JSON persistence for jobs, versions and processed request IDs.
 - Automatic reconnect with exponential backoff and jitter, offline suspension and tab-resume synchronization.
 - A ten-second connection timeout, server ping/pong heartbeat, message size and rate limits.
-- A graphite glass interface, keyboard controls, mobile layout and reduced-motion support.
+- A soft violet glass interface, keyboard controls, mobile layout and reduced-motion support.
 
 ## Run locally
 

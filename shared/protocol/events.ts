@@ -4,6 +4,8 @@ export const jobCreateEventSchema = z.object({
   type: z.literal('job:create'),
   requestId: z.string().min(1),
   payload: z.object({
+    status: z.enum(['backlog', 'in-progress', 'done']).optional(),
+    description: z.string().max(1000, 'Description must be 1000 characters or fewer').optional(),
     title: z
       .string()
       .trim()
@@ -15,7 +17,10 @@ export const jobCreateEventSchema = z.object({
 export const jobSchema = z.object({
   id: z.string(),
   title: z.string(),
+  description: z.string().max(1000).optional(),
   completed: z.boolean(),
+  status: z.enum(['backlog', 'in-progress', 'done', 'deleted']).optional(),
+  number: z.number().int().positive().optional(),
   version: z.number().int().positive(),
 });
 
@@ -31,12 +36,18 @@ export const jobUpdateEventSchema = z.object({
     .object({
       id: z.string(),
       completed: z.boolean().optional(),
+      status: z.enum(['backlog', 'in-progress', 'done']).optional(),
       title: jobCreateEventSchema.shape.payload.shape.title.optional(),
+      description: jobCreateEventSchema.shape.payload.shape.description,
       expectedVersion: z.number().int().positive(),
     })
     .refine(
-      (payload) => payload.completed !== undefined || payload.title !== undefined,
-      'An update must contain title or completed',
+      (payload) =>
+        payload.completed !== undefined ||
+        payload.title !== undefined ||
+        payload.description !== undefined ||
+        payload.status !== undefined,
+      'An update must contain title, description, completed or status',
     ),
 });
 
@@ -58,7 +69,7 @@ export const jobDeleteEventSchema = z.object({
 
 export const jobDeletedEventSchema = z.object({
   type: z.literal('job:deleted'),
-  payload: z.object({ id: z.string() }),
+  payload: z.object({ id: z.string(), job: jobSchema.optional() }),
 });
 
 export const jobAckEventSchema = z.object({

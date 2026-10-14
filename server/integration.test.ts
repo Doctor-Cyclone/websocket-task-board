@@ -131,7 +131,9 @@ describe('multiple clients over real WebSocket connections', () => {
     server = createServer({ port: 0, storagePath });
     await once(server, 'listening');
     const restored = await connect('alpha', 'Alice');
-    expect((await waitFor(restored, 'jobs:sync')).payload).toEqual([]);
+    expect((await waitFor(restored, 'jobs:sync')).payload).toMatchObject([
+      { id: job.id, status: 'deleted' },
+    ]);
     send(restored, deletion);
     await waitFor(restored, 'request:ack');
     expect(restored.events.some((event) => event.type === 'job:deleted')).toBe(false);

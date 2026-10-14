@@ -8,8 +8,8 @@ export function RequestsPanel({ requests, connected, onRetry }: Props) {
   return (
     <section className={styles.panel} aria-labelledby="requests-heading">
       <div className={styles.heading}>
-        <h2 id="requests-heading">Requests</h2>
-        <p>Creation and update confirmations.</p>
+        <h2 id="requests-heading">Live activity</h2>
+        <p>Your requests and server confirmations.</p>
       </div>
       {requests.length === 0 ? (
         <div className={styles.empty}>
@@ -17,7 +17,7 @@ export function RequestsPanel({ requests, connected, onRetry }: Props) {
             <Icon name="file" />
           </span>
           <h3>Nothing waiting in the wings.</h3>
-          <p>Your creation and update requests will appear here.</p>
+          <p>Your job requests will appear here.</p>
         </div>
       ) : (
         <ul className={styles.list}>

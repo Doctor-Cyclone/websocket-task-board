@@ -1,9 +1,20 @@
 import type { SVGProps } from 'react';
 
-type IconProps = SVGProps<SVGSVGElement> & { name: 'plus' | 'trash' | 'file' | 'check' | 'clock' };
+type IconProps = SVGProps<SVGSVGElement> & {
+  name: 'plus' | 'trash' | 'file' | 'check' | 'clock' | 'cross' | 'edit' | 'more';
+};
 
 export function Icon({ name, ...props }: IconProps) {
   const paths = {
+    cross: <path d="m6 6 12 12M18 6 6 18" />,
+    edit: <path d="m16 3 5 5-12 12H4v-5L16 3ZM13 6l5 5M3 23h18" />,
+    more: (
+      <>
+        <circle cx="5" cy="12" r="1" />
+        <circle cx="12" cy="12" r="1" />
+        <circle cx="19" cy="12" r="1" />
+      </>
+    ),
     plus: <path d="M12 5v14M5 12h14" />,
     trash: (
       <>

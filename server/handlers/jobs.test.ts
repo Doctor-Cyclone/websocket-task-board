@@ -3,7 +3,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebSocket } from 'ws';
-import type { JobCreateEvent, JobUpdateEvent } from '@/shared/protocol/index.js';
+import {
+  jobCreateEventSchema,
+  jobUpdateEventSchema,
+  type JobCreateEvent,
+  type JobUpdateEvent,
+} from '@/shared/protocol/index.js';
 import { createRoomStore } from '../store/roomStore.js';
 import { createJob } from './createJob.js';
 import { updateJob } from './updateJob.js';
@@ -62,6 +67,81 @@ function lastResponse() {
 }
 
 describe('room job handlers', () => {
+  it.each(['backlog', 'in-progress', 'done'] as const)('creates a job directly in %s', (status) => {
+    const event = jobCreateEventSchema.parse({
+      ...createEvent,
+      payload: { title: 'New job', status },
+    });
+    const created = createJob(socket, store.getRoom('alpha'), event)!;
+    expect(created.payload).toMatchObject({ status, completed: status === 'done', version: 1 });
+    expect(createRoomStore(storagePath).getRoom('alpha').jobs[0].status).toBe(status);
+  });
+
+  it('validates, broadcasts and persists descriptions, including clearing them', () => {
+    const creation = jobCreateEventSchema.parse({
+      ...createEvent,
+      payload: { title: 'Detailed job', description: 'First line\nSecond line' },
+    });
+    const job = createJob(socket, store.getRoom('alpha'), creation)!.payload;
+    expect(job.description).toBe('First line\nSecond line');
+    expect(createRoomStore(storagePath).getRoom('alpha').jobs[0].description).toBe(job.description);
+    const update = jobUpdateEventSchema.parse({
+      type: 'job:update',
+      requestId: 'details-1',
+      payload: { id: job.id, expectedVersion: 1, title: 'Renamed job', description: 'New notes' },
+    });
+    expect(updateJob(socket, store.getRoom('alpha'), update)?.payload).toMatchObject({
+      title: 'Renamed job',
+      description: 'New notes',
+      version: 2,
+    });
+    const clear = jobUpdateEventSchema.parse({
+      type: 'job:update',
+      requestId: 'details-2',
+      payload: { id: job.id, expectedVersion: 2, description: '' },
+    });
+    updateJob(socket, store.getRoom('alpha'), clear);
+    expect(createRoomStore(storagePath).getRoom('alpha').jobs[0].description).toBe('');
+    expect(
+      jobCreateEventSchema.safeParse({
+        ...creation,
+        payload: { title: 'Valid', description: 'x'.repeat(1001) },
+      }).success,
+    ).toBe(false);
+  });
+
+  it('moves jobs through kanban statuses and protects deleted jobs from edits', () => {
+    const job = createExample();
+    expect(job).toMatchObject({ status: 'backlog', number: 1 });
+    const result = updateJob(socket, store.getRoom('alpha'), {
+      type: 'job:update',
+      requestId: 'move-1',
+      payload: { id: job.id, expectedVersion: 1, status: 'in-progress' },
+    });
+    expect(result?.payload).toMatchObject({ status: 'in-progress', completed: false, version: 2 });
+    expect(createRoomStore(storagePath).getRoom('alpha').jobs[0].status).toBe('in-progress');
+    deleteJob(socket, store.getRoom('alpha'), {
+      type: 'job:delete',
+      requestId: 'delete-1',
+      payload: { id: job.id },
+    });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(
+      updateJob(socket, store.getRoom('alpha'), {
+        type: 'job:update',
+        requestId: 'move-2',
+        payload: { id: job.id, expectedVersion: 3, status: 'done' },
+      }),
+    ).toBeUndefined();
+    expect(lastResponse().type).toBe('request:error');
+    const next = createJob(socket, store.getRoom('alpha'), {
+      ...createEvent,
+      requestId: 'create-2',
+    });
+    expect(next?.payload.number).toBe(2);
+    expect(store.getRoom('alpha').jobs[0].status).toBe('deleted');
+  });
+
   it('creates a versioned job, persists it and acknowledges the request', () => {
     transmit.mockImplementation(() => {
       expect(createRoomStore(storagePath).getRoom('alpha').jobs).toHaveLength(1);
@@ -145,8 +225,13 @@ describe('room job handlers', () => {
         requestId: 'delete-1',
         payload: { id: job.id },
       }),
-    ).toEqual({ type: 'job:deleted', payload: { id: job.id } });
-    expect(createRoomStore(storagePath).getRoom('alpha').jobs).toEqual([]);
+    ).toMatchObject({
+      type: 'job:deleted',
+      payload: { id: job.id, job: { status: 'deleted', version: 2 } },
+    });
+    expect(createRoomStore(storagePath).getRoom('alpha').jobs).toMatchObject([
+      { id: job.id, status: 'deleted' },
+    ]);
   });
 
   it('does not delete a job from another room', () => {
@@ -189,7 +274,7 @@ describe('persistent room store', () => {
     });
     store = createRoomStore(storagePath);
     expect(createJob(socket, store.getRoom('alpha'), createEvent)).toBeUndefined();
-    expect(store.getRoom('alpha').jobs).toEqual([]);
+    expect(store.getRoom('alpha').jobs).toMatchObject([{ id: job.id, status: 'deleted' }]);
   });
 
   it.each([

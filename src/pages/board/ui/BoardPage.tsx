@@ -58,28 +58,28 @@ export default function BoardPage() {
           editors={connected ? editors : []}
           onEditing={(id, active) => send({ type: 'job:editing', payload: { id, active } })}
           connected={connected}
-          onCreate={(title) =>
+          onCreate={(details) =>
             send({
               type: 'job:create',
               requestId: crypto.randomUUID(),
-              payload: { title },
+              payload: details,
             })
           }
-          onToggle={(job) =>
+          onMove={(job, status) =>
             send({
               type: 'job:update',
               requestId: crypto.randomUUID(),
-              payload: { id: job.id, completed: !job.completed, expectedVersion: job.version },
+              payload: { id: job.id, status, expectedVersion: job.version },
             })
           }
           onDelete={(id) =>
             send({ type: 'job:delete', requestId: crypto.randomUUID(), payload: { id } })
           }
-          onRename={(job, title) =>
+          onUpdateDetails={(job, details) =>
             send({
               type: 'job:update',
               requestId: crypto.randomUUID(),
-              payload: { id: job.id, title, expectedVersion: job.version },
+              payload: { id: job.id, ...details, expectedVersion: job.version },
             })
           }
         />

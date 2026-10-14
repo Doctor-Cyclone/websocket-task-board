@@ -25,7 +25,17 @@ export function createJob(
     return;
   }
 
-  const job: Job = { id: randomUUID(), title: event.payload.title, completed: false, version: 1 };
+  const number = Math.max(0, ...roomState.jobs.map((job, index) => job.number ?? index + 1)) + 1;
+  const status = event.payload.status ?? 'backlog';
+  const job: Job = {
+    id: randomUUID(),
+    title: event.payload.title,
+    description: event.payload.description ?? '',
+    completed: status === 'done',
+    status,
+    number,
+    version: 1,
+  };
   roomState.jobs.push(job);
   roomState.processedCreateRequests.set(event.requestId, job);
   roomState.save();
