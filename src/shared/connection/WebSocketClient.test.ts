@@ -40,6 +40,7 @@ const latestSocket = () => FakeSocket.instances[FakeSocket.instances.length - 1]
 
 beforeEach(() => {
   vi.useFakeTimers();
+  vi.spyOn(Math, 'random').mockReturnValue(1);
   vi.stubGlobal('WebSocket', FakeSocket);
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
