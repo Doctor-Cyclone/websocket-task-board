@@ -1,4 +1,5 @@
 export const CONNECTION_STATUS = {
+  OFFLINE: 'Offline',
   DISCONNECTING: 'Disconnecting...',
   DISCONNECTED: 'Disconnected',
   CONNECTING: 'Connecting...',

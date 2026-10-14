@@ -120,6 +120,12 @@ server.on('connection', (socket, request) => {
 
     try {
       switch (event.type) {
+        case 'room:sync':
+          sendEvent(socket, { type: 'jobs:sync', payload: roomState.jobs });
+          sendEvent(socket, { type: 'room:participants', payload: participantStore.list(room) });
+          sendEvent(socket, { type: 'room:editing', payload: editingStore.list(room) });
+
+          return;
         case 'job:editing':
           if (roomState.jobs.some((job) => job.id === event.payload.id)) {
             editingStore.set(

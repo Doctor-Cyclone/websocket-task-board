@@ -130,7 +130,9 @@ export const useJobs = (room: Room, name = 'Guest') => {
   url.searchParams.set('name', name.trim() || 'Guest');
   url.searchParams.set('clientId', clientId);
 
-  const connection = useWebSocket(url.toString(), handleMessage);
+  const connection = useWebSocket(url.toString(), handleMessage, (transmit) =>
+    transmit(JSON.stringify({ type: 'room:sync' })),
+  );
 
   const connect = () => {
     if (changeRoom(room)) connection.connect();

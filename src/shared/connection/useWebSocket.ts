@@ -1,8 +1,13 @@
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState, useRef } from 'react';
 import { CONNECTION_STATUS, type ConnectionStatus } from './index';
 import { WebSocketClient } from './WebSocketClient';
 
-export function useWebSocket(url: string, onMessage: (data: string) => void) {
+export function useWebSocket(
+  url: string,
+  onMessage: (data: string) => void,
+  onResume?: (transmit: (data: string) => boolean) => void,
+) {
+  const onResumeRef = useRef(onResume);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(
     CONNECTION_STATUS.DISCONNECTED,
   );
@@ -13,10 +18,30 @@ export function useWebSocket(url: string, onMessage: (data: string) => void) {
 
   useLayoutEffect(() => {
     client.setMessageHandler(onMessage);
-  }, [client, onMessage]);
+    onResumeRef.current = onResume;
+  }, [client, onMessage, onResume]);
 
   useEffect(() => {
-    return () => client.dispose();
+    client.setOnline(navigator.onLine);
+    const online = () => client.setOnline(true);
+    const offline = () => client.setOnline(false);
+    const visible = () => {
+      if (document.visibilityState !== 'visible') return;
+
+      client.setOnline(navigator.onLine);
+
+      if (client.canSend()) onResumeRef.current?.((data) => client.send(data));
+    };
+    window.addEventListener('online', online);
+    window.addEventListener('offline', offline);
+    document.addEventListener('visibilitychange', visible);
+
+    return () => {
+      window.removeEventListener('online', online);
+      window.removeEventListener('offline', offline);
+      document.removeEventListener('visibilitychange', visible);
+      client.dispose();
+    };
   }, [client]);
 
   return {

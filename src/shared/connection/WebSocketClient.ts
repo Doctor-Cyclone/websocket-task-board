@@ -14,6 +14,7 @@ export class WebSocketClient {
   private connectionTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempt = 0;
   private connectionUrl = '';
+  private online = true;
   private onMessage: ClientOptions['onMessage'];
   private readonly onStatus: ClientOptions['onStatus'];
 
@@ -32,6 +33,41 @@ export class WebSocketClient {
 
   canSend(): boolean {
     return this.socket?.readyState === WebSocket.OPEN;
+  }
+
+  setOnline(online: boolean): void {
+    this.online = online;
+
+    if (!online) {
+      this.clearConnectionTimer();
+
+      if (this.reconnectTimer !== null) clearTimeout(this.reconnectTimer);
+
+      this.reconnectTimer = null;
+      const socket = this.socket;
+      this.socket = null;
+
+      if (socket) {
+        socket.onopen = null;
+        socket.onerror = null;
+        socket.onclose = null;
+        socket.onmessage = null;
+        socket.close();
+      }
+
+      if (this.shouldReconnect) this.onStatus(CONNECTION_STATUS.OFFLINE);
+    } else {
+      this.resume();
+    }
+  }
+
+  resume(): void {
+    if (!this.shouldReconnect || !this.online || this.socket !== null) return;
+
+    if (this.reconnectTimer !== null) clearTimeout(this.reconnectTimer);
+
+    this.reconnectTimer = null;
+    this.openSocket();
   }
 
   connect(url: string): boolean {
@@ -111,6 +147,12 @@ export class WebSocketClient {
       return;
     }
 
+    if (!this.online) {
+      this.onStatus(CONNECTION_STATUS.OFFLINE);
+
+      return;
+    }
+
     const delay = getReconnectDelay(this.reconnectAttempt);
 
     this.reconnectAttempt += 1;
@@ -126,6 +168,12 @@ export class WebSocketClient {
 
   private openSocket(): void {
     if (!this.shouldReconnect || this.socket !== null) return;
+
+    if (!this.online) {
+      this.onStatus(CONNECTION_STATUS.OFFLINE);
+
+      return;
+    }
 
     this.onStatus(CONNECTION_STATUS.CONNECTING);
 

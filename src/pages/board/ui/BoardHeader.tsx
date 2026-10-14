@@ -24,6 +24,7 @@ export function BoardHeader({
   const connected = status === CONNECTION_STATUS.CONNECTED;
   const active =
     connected ||
+    status === CONNECTION_STATUS.OFFLINE ||
     status === CONNECTION_STATUS.CONNECTING ||
     status === CONNECTION_STATUS.RECONNECTING ||
     status === CONNECTION_STATUS.ERROR;

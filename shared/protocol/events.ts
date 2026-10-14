@@ -103,6 +103,7 @@ export const serverEventSchema = z.discriminatedUnion('type', [
 ]);
 
 export const jobEventSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('room:sync') }),
   jobEditingEventSchema,
   jobCreateEventSchema,
   jobUpdateEventSchema,
