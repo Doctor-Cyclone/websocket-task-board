@@ -43,6 +43,92 @@ beforeAll(() => {
 });
 
 describe('board interface', () => {
+  it('moves a dragged job to another column and keeps the dialog closed', () => {
+    const onMove = vi.fn();
+    render(
+      <JobCard
+        job={job}
+        number={1}
+        connected
+        onMove={onMove}
+        onDelete={vi.fn()}
+        onUpdateDetails={vi.fn()}
+        editorNames={[]}
+        onEditing={vi.fn()}
+      />,
+    );
+    const card = screen.getByRole('button', { name: 'Open Example' });
+    const dataTransfer = { setData: vi.fn(), effectAllowed: '', dropEffect: '' };
+    expect(card.getAttribute('draggable')).toBe('true');
+    fireEvent.dragStart(card, { dataTransfer });
+    const target = screen.getByRole('region', { name: 'In progress' });
+    fireEvent.dragOver(target, { dataTransfer });
+    expect(dataTransfer.dropEffect).toBe('move');
+    fireEvent.drop(target, { dataTransfer });
+    fireEvent.dragEnd(card, { dataTransfer });
+    fireEvent.click(card);
+    expect(onMove).toHaveBeenCalledWith({ ...job, number: 1 }, 'in-progress');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('rejects drops in the same column and while disconnected', () => {
+    const onMove = vi.fn();
+    const props = {
+      job,
+      number: 1,
+      onMove,
+      onDelete: vi.fn(),
+      onUpdateDetails: vi.fn(),
+      editorNames: [],
+      onEditing: vi.fn(),
+    };
+    const { rerender } = render(<JobCard {...props} connected />);
+    const card = screen.getByRole('button', { name: 'Open Example' });
+    const dataTransfer = { setData: vi.fn(), effectAllowed: '', dropEffect: '' };
+    for (const name of ['Backlog']) {
+      fireEvent.dragStart(card, { dataTransfer });
+      fireEvent.dragOver(screen.getByRole('region', { name }), { dataTransfer });
+      expect(dataTransfer.dropEffect).toBe('none');
+      fireEvent.drop(screen.getByRole('region', { name }), { dataTransfer });
+      fireEvent.dragEnd(card, { dataTransfer });
+    }
+    fireEvent.dragStart(card, { dataTransfer });
+    rerender(<JobCard {...props} connected={false} />);
+    expect(card.getAttribute('draggable')).toBe('false');
+    fireEvent.drop(screen.getByRole('region', { name: 'Done' }), { dataTransfer });
+    expect(onMove).not.toHaveBeenCalled();
+    rerender(<JobCard {...props} job={{ ...job, status: 'deleted' }} connected />);
+    expect(screen.getByRole('button', { name: 'Open Example' }).getAttribute('draggable')).toBe(
+      'false',
+    );
+  });
+
+  it('deletes a job when dropped into Deleted without sending a status update', () => {
+    const onMove = vi.fn();
+    const onDelete = vi.fn();
+    render(
+      <JobCard
+        job={job}
+        number={1}
+        connected
+        onMove={onMove}
+        onDelete={onDelete}
+        onUpdateDetails={vi.fn()}
+        editorNames={[]}
+        onEditing={vi.fn()}
+      />,
+    );
+    const dataTransfer = { setData: vi.fn(), effectAllowed: '', dropEffect: '' };
+    fireEvent.dragStart(screen.getByRole('button', { name: 'Open Example' }), { dataTransfer });
+    const target = screen.getByRole('region', { name: 'Deleted' });
+    fireEvent.dragOver(target, { dataTransfer });
+    expect(dataTransfer.dropEffect).toBe('move');
+    fireEvent.drop(target, { dataTransfer });
+    expect(onDelete).toHaveBeenCalledExactlyOnceWith(job.id);
+    expect(onMove).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
   it('requires a nonblank title and a connection before creating a job', () => {
     const onCreate = vi.fn();
     const props = {

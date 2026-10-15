@@ -1,6 +1,7 @@
 import type { JobDetails } from './JobModal';
 import { useState } from 'react';
 import { JobDialog } from './JobDialog';
+import { useJobDragAndDrop } from '../model/useJobDragAndDrop';
 import type { Job, EditingParticipant } from '@/shared/protocol';
 import { Icon } from './Icon';
 import styles from './JobsPanel.module.scss';
@@ -44,6 +45,7 @@ export function JobsPanel({
 }: Props) {
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const selectedJob = jobs.find((job) => job.id === selectedJobId);
+  const drag = useJobDragAndDrop({ jobs, connected, onMove, onDelete });
 
   return (
     <section className={styles.board} aria-label="Job board">
@@ -53,8 +55,11 @@ export function JobsPanel({
         return (
           <section
             key={status}
-            className={`${styles.column} ${styles[status]}`}
+            className={`${styles.column} ${styles[status]} ${drag.targetStatus === status ? styles.dropTarget : ''}`}
             aria-label={JOB_STATUS_LABEL[status]}
+            onDragOver={(event) => drag.overColumn(event, status)}
+            onDragLeave={drag.leaveColumn}
+            onDrop={(event) => drag.dropOnColumn(event, status)}
           >
             <h2 className={styles.heading}>
               <Icon name={icons[status]} />
@@ -72,6 +77,9 @@ export function JobsPanel({
                   onOpen={() => setSelectedJobId(job.id)}
                   connected={connected}
                   onDelete={onDelete}
+                  dragging={drag.draggedJobId === job.id}
+                  onDragStart={(event) => drag.startDrag(event, job)}
+                  onDragEnd={drag.endDrag}
                   editorNames={editors
                     .filter((editor) => editor.jobId === job.id)
                     .map((editor) => editor.name)}

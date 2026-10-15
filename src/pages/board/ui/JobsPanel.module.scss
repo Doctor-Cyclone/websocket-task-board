@@ -7,6 +7,12 @@
 .column {
   --accent: #c5a3ee;
   --tint: 134, 104, 177;
+  position: relative;
+  transform-origin: center center;
+  transition:
+    transform 200ms ease,
+    box-shadow 200ms ease,
+    border-color 200ms ease;
   min-width: 0;
   min-height: 420px;
   padding: 14px;
@@ -64,6 +70,32 @@
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 12px;
+}
+.dropTarget {
+  z-index: 1;
+  transform: translateY(-5px) scale(1.025);
+  border-color: var(--accent);
+  box-shadow:
+    inset 0 0 0 1px var(--accent),
+    inset 0 0 24px rgba(var(--tint), 0.2),
+    0 0 10px rgba(var(--tint), 0.65),
+    0 0 32px rgba(var(--tint), 0.4),
+    0 20px 42px #00000045;
+  background: linear-gradient(145deg, rgba(var(--tint), 0.32), rgba(var(--tint), 0.15));
+}
+.dragging {
+  opacity: 0.4;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dropTarget {
+    transform: none;
+  }
+}
+.preview[draggable='true'] {
+  cursor: grab;
+  &:active {
+    cursor: grabbing;
+  }
 }
 .preview {
   display: block;

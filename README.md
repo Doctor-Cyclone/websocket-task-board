@@ -7,6 +7,7 @@ A collaborative job board built with React, TypeScript, SCSS Modules and a Node.
 - Separate Alpha and Beta boards with a smooth room selector.
 - Named online participants and temporary editing indicators.
 - Four kanban columns: Backlog, In progress, Done and Deleted, with stable job numbers.
+- Drag cards between Backlog, In progress and Done while connected, or drop into Deleted to delete them. Valid target columns are highlighted. Deleted cards cannot be dragged. Changes are confirmed by the server; the dialog status selector and trash button remain available as alternatives.
 - Open a card to view its full description, edit details or change its status in a dialog. Deleted jobs are retained; changes arrive through server events.
 - Optimistic version checks for updates, with current job data returned on conflicts.
 - ACK tracking, a five-second confirmation timeout and manual Retry for all job operations.
