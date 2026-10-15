@@ -67,6 +67,56 @@ function lastResponse() {
 }
 
 describe('room job handlers', () => {
+  it('restores deleted jobs with version checks, persistence and retry deduplication', () => {
+    const job = createExample();
+    const originalNumber = job.number;
+    deleteJob(socket, store.getRoom('alpha'), {
+      type: 'job:delete',
+      requestId: 'delete-restore',
+      payload: { id: job.id },
+    });
+    const restore: JobUpdateEvent = {
+      type: 'job:update',
+      requestId: 'restore-1',
+      payload: { id: job.id, expectedVersion: 2, status: 'backlog' },
+    };
+    expect(
+      updateJob(socket, store.getRoom('alpha'), {
+        ...restore,
+        requestId: 'stale-restore',
+        payload: { ...restore.payload, expectedVersion: 1 },
+      }),
+    ).toBeUndefined();
+    expect(lastResponse()).toMatchObject({
+      type: 'request:error',
+      payload: { currentJob: { status: 'deleted', version: 2 } },
+    });
+    expect(
+      updateJob(socket, store.getRoom('alpha'), {
+        ...restore,
+        requestId: 'invalid-restore',
+        payload: { ...restore.payload, title: 'Overwrite' },
+      }),
+    ).toBeUndefined();
+    const restored = updateJob(socket, store.getRoom('alpha'), restore)!;
+    expect(restored.payload).toMatchObject({
+      id: job.id,
+      title: createEvent.payload.title,
+      number: originalNumber,
+      status: 'backlog',
+      completed: false,
+      version: 3,
+    });
+    store = createRoomStore(storagePath);
+    expect(store.getRoom('alpha').jobs[0]).toEqual(restored.payload);
+    expect(updateJob(socket, store.getRoom('alpha'), restore)).toBeUndefined();
+    expect(lastResponse()).toMatchObject({
+      type: 'request:ack',
+      payload: { requestId: 'restore-1' },
+    });
+    expect(store.getRoom('alpha').jobs[0].version).toBe(3);
+  });
+
   it.each(['backlog', 'in-progress', 'done'] as const)('creates a job directly in %s', (status) => {
     const event = jobCreateEventSchema.parse({
       ...createEvent,

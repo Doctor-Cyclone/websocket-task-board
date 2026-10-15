@@ -16,7 +16,7 @@ export function updateJob(
 
   const job = roomState.jobs.find((entry) => entry.id === event.payload.id);
 
-  if (!job || job.status === 'deleted') {
+  if (!job) {
     console.error('Job not found');
     sendEvent(socket, {
       type: 'request:error',
@@ -33,6 +33,25 @@ export function updateJob(
         requestId: event.requestId,
         message:
           'This job changed in another tab. The latest version has been loaded. Please try again.',
+        currentJob: job,
+      },
+    });
+
+    return;
+  }
+
+  const restoring =
+    event.payload.status === 'backlog' &&
+    event.payload.title === undefined &&
+    event.payload.description === undefined &&
+    event.payload.completed === undefined;
+
+  if (job.status === 'deleted' && !restoring) {
+    sendEvent(socket, {
+      type: 'request:error',
+      payload: {
+        requestId: event.requestId,
+        message: 'Restore this job to Backlog before editing it.',
         currentJob: job,
       },
     });

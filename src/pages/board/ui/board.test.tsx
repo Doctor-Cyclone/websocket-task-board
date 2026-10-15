@@ -43,6 +43,31 @@ beforeAll(() => {
 });
 
 describe('board interface', () => {
+  it('restores a deleted job from its dialog and blocks restoration offline', () => {
+    const onMove = vi.fn();
+    const props = {
+      job: { ...job, status: 'deleted' as const, version: 2 },
+      number: 1,
+      editorNames: [],
+      onMove,
+      onDelete: vi.fn(),
+      onUpdateDetails: vi.fn(),
+      onEditing: vi.fn(),
+    };
+    const { rerender } = render(<JobCard {...props} connected />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open Example' }));
+    expect(screen.queryByRole('button', { name: 'Edit Example' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Restore Example' }));
+    expect(onMove).toHaveBeenCalledWith({ ...props.job, number: 1 }, 'backlog');
+    rerender(<JobCard {...props} connected={false} />);
+    expect(
+      (screen.getByRole('button', { name: 'Restore Example' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    rerender(<JobCard {...props} job={{ ...job, status: 'backlog', version: 3 }} connected />);
+    expect(screen.getByRole('dialog')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Edit Example' })).toBeDefined();
+  });
+
   it('moves a dragged job to another column and keeps the dialog closed', () => {
     const onMove = vi.fn();
     render(

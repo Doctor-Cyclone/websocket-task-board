@@ -78,6 +78,34 @@ async function create(client: Client, requestId = 'create-1') {
 }
 
 describe('multiple clients over real WebSocket connections', () => {
+  it('broadcasts restoration to the room and retains it after restarting', async () => {
+    const a = await connect('alpha', 'Alice');
+    const b = await connect('alpha', 'Bob');
+    const beta = await connect('beta', 'Carol');
+    const job = await create(a);
+    send(a, { type: 'job:delete', requestId: 'delete-restore', payload: { id: job.id } });
+    await waitFor(b, 'job:deleted');
+    send(b, {
+      type: 'job:update',
+      requestId: 'restore-1',
+      payload: { id: job.id, expectedVersion: 2, status: 'backlog' },
+    });
+    expect((await waitFor(a, 'job:updated')).payload).toMatchObject({
+      id: job.id,
+      status: 'backlog',
+      completed: false,
+      version: 3,
+    });
+    expect((await waitFor(b, 'request:ack')).payload.requestId).toBe('restore-1');
+    expect(beta.events.some((event) => event.type === 'job:updated')).toBe(false);
+    await stopServer();
+    server = createServer({ port: 0, storagePath });
+    await once(server, 'listening');
+    expect((await waitFor(await connect('alpha', 'Alice'), 'jobs:sync')).payload).toMatchObject([
+      { id: job.id, status: 'backlog', version: 3 },
+    ]);
+  });
+
   it('isolates rooms, broadcasts to both Alpha clients and ACKs only the sender', async () => {
     const a = await connect('alpha', 'Alice');
     const b = await connect('alpha', 'Bob');

@@ -78,17 +78,17 @@ export function JobDetailsModal({
       />
       {!connected && <p className={styles.notice}>Connect to edit this job.</p>}
       {status === JOB_STATUS.DELETED && (
-        <p className={styles.notice}>This job has been deleted and is read-only.</p>
+        <p className={styles.notice}>Restore this job to Backlog to continue working on it.</p>
       )}
       <div className={styles.footer}>
         <button
           type="button"
           className={styles.editButton}
-          disabled={!canChange}
-          aria-label={`Edit ${job.title}`}
-          onClick={onEdit}
+          disabled={!connected}
+          aria-label={status === JOB_STATUS.DELETED ? `Restore ${job.title}` : `Edit ${job.title}`}
+          onClick={status === JOB_STATUS.DELETED ? () => onMove(job, JOB_STATUS.BACKLOG) : onEdit}
         >
-          Edit job
+          {status === JOB_STATUS.DELETED ? 'Restore to Backlog' : 'Edit job'}
         </button>
       </div>
     </Modal>
