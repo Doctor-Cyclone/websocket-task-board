@@ -10,7 +10,7 @@ All application events are JSON text. `shared/protocol/events.ts` contains the a
 
 | Type          | Fields                                                                                     | Behavior                                                                                        |
 | ------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| `job:create`  | `requestId`, `payload: { title, description? }`                                            | Trim and validate title, create version 1, save, ACK sender and broadcast                       |
+| `job:create`  | `requestId`, `payload: { title, description?, status? }`                                   | Trim and validate title, create version 1, save, ACK sender and broadcast                       |
 | `job:update`  | `requestId`, `payload: { id, expectedVersion, title?, description?, completed?, status? }` | At least one change is required; reject outdated versions, otherwise increment version and save |
 | `job:delete`  | `requestId`, `payload: { id }`                                                             | Move to Deleted, save and ACK; retries do not repeat the change                                 |
 | `job:editing` | `payload: { id, active }`                                                                  | Update temporary activity for an existing job                                                   |
@@ -31,9 +31,31 @@ Title length is 1–200 characters after trimming. Descriptions are optional and
 | `room:participants` | `{ clientId, name }[]`                | Room                               |
 | `room:editing`      | `{ jobId, clientId, name }[]`         | Room                               |
 
-`Job` contains `id`, `title`, `completed`, `version`, and optional `description`, `status` and `number` fields for legacy storage compatibility. New jobs have a stable room-scoped number and start in `backlog`. Status updates accept `backlog`, `in-progress` or `done`; `completed` is synchronized with `done`. Old jobs without a status use `completed` to select Done or Backlog.
+`Job` contains `id`, `title`, `completed`, `version`, and optional `description`, `status` and `number` fields for legacy storage compatibility. New jobs have a stable room-scoped number. Creation accepts `backlog`, `in-progress` or `done`; omitting the status defaults to `backlog`. Creating in `done` sets `completed` to true. Status updates accept `backlog`, `in-progress` or `done`; `completed` is synchronized with `done`. Old jobs without a status use `completed` to select Done or Backlog.
 
-Deletion preserves the job with status `deleted` and increments its version. Deleted jobs are included in room snapshots and cannot be edited. The room limit includes deleted records. `job:deleted` includes the updated job; older events containing only an ID remain readable by the frontend. Records removed before this change cannot be recovered.
+Deletion preserves the job with status `deleted` and increments its version. Deleted jobs are included in room snapshots. Their title and description cannot be edited until restoration. The room limit includes deleted records. `job:deleted` includes the updated job; older events containing only an ID remain readable by the frontend. Records removed before this change cannot be recovered.
+
+## Restoring deleted jobs
+
+Restoration uses the existing update event, with a new request ID and the current version of the deleted job:
+
+```json
+{
+  "type": "job:update",
+  "requestId": "restore-unique-id",
+  "payload": {
+    "id": "job-id",
+    "expectedVersion": 2,
+    "status": "backlog"
+  }
+}
+```
+
+For a deleted job this request must contain only the identity, version and `status: "backlog"`; combining restoration with title, description or completed changes is rejected. Restoration keeps the ID, number and details, clears completed, increments the version, persists, ACKs the sender and broadcasts `job:updated` to the room. A stale version returns the current job; retrying a processed request reuses its original ID and receives another ACK without another change. A job already physically removed by an older application version cannot be restored.
+
+Dragging to Deleted sends `job:delete`; dragging between active columns and choosing a dialog status send `job:update`. The frontend waits for server broadcasts before moving a card. Conflicts keep the server version and display a failed request in Live activity.
+
+## Acknowledgements and errors
 
 ACK confirms application processing after persistence. Broadcasts update the board; ACKs settle a particular request. A duplicate processed request receives another ACK but is not applied or broadcast again.
 

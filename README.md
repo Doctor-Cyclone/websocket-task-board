@@ -8,7 +8,7 @@ A collaborative job board built with React, TypeScript, SCSS Modules and a Node.
 - Named online participants and temporary editing indicators.
 - Four kanban columns: Backlog, In progress, Done and Deleted, with stable job numbers.
 - Drag cards between Backlog, In progress and Done while connected, or drop into Deleted to delete them. Valid target columns are highlighted. Deleted cards cannot be dragged. Changes are confirmed by the server; the dialog status selector and trash button remain available as alternatives.
-- Open a card to view its full description, edit details or change its status in a dialog. Deleted jobs are retained; changes arrive through server events.
+- Open a card to view its full description, edit details or change its status in a dialog. Deleted jobs are retained and can be restored to Backlog from their dialog; changes arrive through server events.
 - Optimistic version checks for updates, with current job data returned on conflicts.
 - ACK tracking, a five-second confirmation timeout and manual Retry for all job operations.
 - JSON persistence for jobs, versions and processed request IDs.
@@ -34,7 +34,11 @@ pnpm dev:server
 
 Open http://127.0.0.1:5174/. The WebSocket server listens on 127.0.0.1:3001. Stop either process with Ctrl+C.
 
-Enter a name, choose a room and press Connect. Disconnect before changing rooms. Saved room snapshots remain visible while disconnected; controls are disabled. Connecting replaces the snapshot with the server's current board.
+Enter a name, choose a room and press Connect. Disconnect before changing rooms. Saved room snapshots remain visible while disconnected. Cards can still be opened for reading; creation, editing, deletion, restoration and dragging are disabled. Connecting replaces the snapshot with the server's current board.
+
+Use New job in Backlog to enter a title, optional description and initial status. Click a card to read its description, use the sliding status selector or open the edit form. Delete through its trash button or by dropping it into Deleted. Open a deleted card and choose Restore to Backlog to keep its original ID, number, title and description.
+
+Dragging changes the status, not the order within a column. On touch devices or with a keyboard, use the status radio buttons in the dialog. Deleted cards cannot be dragged out; restoration is an explicit action. Live activity displays requests initiated in the current page, not a permanent room-wide audit log.
 
 ## Commands
 
@@ -77,7 +81,7 @@ Boards are saved in `server/data/boards.json`. The file is excluded from Git. Ke
 | ------------------------------------ | --------------------------------------- |
 | Incoming message                     | 8 KiB                                   |
 | Incoming messages per connection     | 30 per one-second window                |
-| Jobs per room                        | 1,000                                   |
+| Jobs per room (including Deleted)    | 1,000                                   |
 | Visible request history              | 100; pending requests are preserved     |
 | Client room snapshots                | 2 rooms, in memory until page reload    |
 | Processed IDs per room and operation | Latest 5,000                            |
